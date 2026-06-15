@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"><title>Te lo llevo V2 - Nómina en Tiempo Real</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="main-header">
+        <div class="logo"><a href="index.html"><h1>Te lo llevo 🏍️</h1></a></div>
+        <nav class="nav-menu">
+            <a href="index.html">Panel</a>
+            <a href="pedidos.html">Pedidos</a>
+            <a href="nomina.html" class="active">Nómina</a>
+        </nav>
+    </header>
+    <main class="dashboard-container">
+        <h2 class="page-title">Acumulado de Nómina Semanal en Tiempo Real</h2>
+        <p style="color:var(--text-muted); margin-bottom:1.5rem;">Cálculos automáticos basados en entregas efectivas de la flota.</p>
+        
+        <div class="table-card">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Código Empleado</th>
+                        <th>Nombre</th>
+                        <th>Apellido</th>
+                        <th>Viajes Completados</th>
+                        <th>Sueldo Bruto (RD$)</th>
+                        <th>Sueldo Neto (80% RD$)</th>
+                    </tr>
+                </thead>
+                <tbody id="nominaBody">
+                    <tr><td colspan="6" style="text-align:center;">Calculando acumulados...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+    <script type="module">
+        import { db, collection, getDocs, query, where } from "./firebase-config.js";
+
+        async function calcularNominaRealTime() {
+            const empSnap = await getDocs(query(collection(db, "empleados"), where("activo", "==", true)));
+            const pedSnap = await getDocs(query(collection(db, "pedidos"), where("valido", "==", true), where("estatus", "==", "Entregado")));
+            
+            const mapaEmp = {};
+            empSnap.forEach(e => {
+                const data = e.data();
+                mapaEmp[data.id_auto] = { nombre: data.nombre, apellido: data.apellido, viajes: 0, bruto: 0 };
+            });
+
+            pedSnap.forEach(p => {
+                const data = p.data();
+                if(mapaEmp[data.id_empleado]) {
+                    mapaEmp[data.id_empleado].viajes += 1;
+                    mapaEmp[data.id_empleado].bruto += parseFloat(data.precio || 0);
+                }
+            });
+
+            const tbody = document.getElementById('nominaBody');
+            tbody.innerHTML = '';
+            
+            for(let key in mapaEmp) {
+                const emp = mapaEmp[key];
+                const neto = emp.bruto * 0.80; // Sueldo Neto de mensajería (80% para el motorista)
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${key}</strong></td>
+                        <td>${emp.nombre}</td>
+                        <td>${emp.apellido}</td>
+                        <td><span class="badge badge-entregado">${emp.viajes} viajes</span></td>
+                        <td><strong>RD$ ${emp.bruto.toFixed(2)}</strong></td>
+                        <td style="color:var(--success-green); font-weight:bold;">RD$ ${neto.toFixed(2)}</td>
+                    </tr>
+                `;
+            }
+        }
+        document.addEventListener('DOMContentLoaded', calcularNominaRealTime);
+    </script>
+</body>
+</html>

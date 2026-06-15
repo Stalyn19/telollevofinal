@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"><title>Te lo llevo V2 - Historial de Reportes</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="main-header">
+        <div class="logo"><a href="index.html"><h1>Te lo llevo 🏍️</h1></a></div>
+        <nav class="nav-menu">
+            <a href="index.html">Panel Principal</a>
+            <a href="reportes.html" class="active">Reportes Históricos</a>
+        </nav>
+    </header>
+
+    <main class="dashboard-container" id="mainContent">
+        <h2 class="page-title">Historial Semanal de Reportes Consolidados</h2>
+        <div id="reportesContainer">
+            <p style="text-align:center; color:var(--text-muted);">No se han realizado cortes de semana todavía.</p>
+        </div>
+    </main>
+
+    <!-- Área de impresión oculta de 55mm -->
+    <div id="ticketPrintArea" class="ticket-print-hidden"></div>
+
+    <script type="module">
+        import { db, collection, getDocs } from "./firebase-config.js";
+
+        async function cargarReportes() {
+            const container = document.getElementById('reportesContainer');
+            const snap = await getDocs(collection(db, "cortes_semanales"));
+            
+            if(snap.empty) return;
+            container.innerHTML = '';
+
+            snap.forEach(docSnap => {
+                const corte = docSnap.data();
+                const block = document.createElement('div');
+                block.className = 'report-block';
+
+                // Agrupaciones analíticas para la sección de empleados y clientes del corte
+                const empData = {};
+                const cliData = {};
+
+                corte.pedidos.forEach(p => {
+                    // Procesar Empleados
+                    if(!empData[p.id_empleado]) {
+                        empData[p.id_empleado] = { nombre: p.nombre_empleado || p.id_empleado, viajes: 0, bruto: 0 };
+                    }
+                    empData[p.id_empleado].viajes += 1;
+                    empData[p.id_empleado].bruto += parseFloat(p.precio || 0);
+
+                    // Procesar Clientes
+                    if(!cliData[p.id_cliente]) {
+                        cliData[p.id_cliente] = { nombre: p.nombre_cliente || p.id_cliente, viajes: 0, acumulado: 0 };
+                    }
+                    cliData[p.id_cliente].viajes += 1;
+                    cliData[p.id_cliente].acumulado += parseFloat(p.precio || 0);
+                });
+
+                let htmlContent = `
+                    <div class="report-header-title">📋 Nómina - Período: Semanal del ${corte.periodo}</div>
+                    
+                    <h4>🛵 Resumen de Liquidación a Mensajeros</h4>
+                    <table class="data-table" style="margin-bottom:1.5rem;">
+                        <thead>
+                            <tr><th>Mensajero</th><th>Viajes</th><th>Sueldo Bruto</th><th>Sueldo Neto</th><th>Factura</th></tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                for(let k in empData) {
+                    const e = empData[k];
+                    const neto = e.bruto * 0.80;
+                    
+                    // JSON stringified safe structure for printing ticket
+                    const tktData = { periodo: corte.periodo, id: k, nombre: e.nombre, viajes: e.viajes, bruto: e.bruto.toFixed(2), neto: neto.toFixed(2) };
+
+                    htmlContent += `
+                        <tr>
+                            <td><strong>${e.nombre}</strong></td>
+                            <td>${e.viajes} de entrega</td>
+                            <td>RD$ ${e.bruto.toFixed(2)}</td>
+                            <td style="color:var(--success-green); font-weight:bold;">RD$ ${neto.toFixed(2)}</td>
+                            <td><button class="action-btn btn-print" data-ticket='${JSON.stringify(tktData)}'>🖨️ Ticket 55mm</button></td>
+                        </tr>
+                    `;
+                }
+
+                htmlContent += `</tbody></table><h4>👥 Resumen de Facturación Clientes</h4><table class="data-table"><thead><tr><th>Cliente</th><th>Viajes Recibidos</th><th>Balance Acumulado</th></tr></thead><tbody>`;
+
+                for(let c in cliData) {
+                    const cl = cliData[c];
+                    htmlContent += `<tr><td><strong>${cl.nombre}</strong></td><td>${cl.viajes} envíos</td><td>RD$ ${cl.acumulado.toFixed(2)}</td></tr>`;
+                }
+
+                htmlContent += `</tbody></table>`;
+                block.innerHTML = htmlContent;
+                container.appendChild(block);
+            });
+
+            // Registrar disparadores de impresión térmica
+            document.querySelectorAll('.btn-print').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const t = JSON.parse(e.target.getAttribute('data-ticket'));
+                    const printArea = document.getElementById('ticketPrintArea');
+                    
+                    printArea.className = "ticket-print-area";
+                    printArea.innerHTML = `
+------------------------
+      TE LO LLEVO V2    
+   Servicio de Motores  
+------------------------
+PERIODO: 
+${t.periodo}
+------------------------
+MENSAJERO:
+${t.nombre} (${t.id})
+------------------------
+VIAJES REALIZADOS: ${t.viajes}
+------------------------
+SUELDO BRUTO:
+RD$ ${t.bruto}
+RETE. EMPRESA: 20%
+------------------------
+SUELDO NETO A PAGAR:
+RD$ ${t.neto}
+------------------------
+Firma Conforme:
+
+
+________________________
+Fecha Impresión: 2026
+
+¡Eficiencia sobre ruedas!
+------------------------
+                    `;
+                    window.print();
+                    printArea.className = "ticket-print-hidden";
+                    printArea.innerHTML = "";
+                });
+            });
+        }
+        document.addEventListener('DOMContentLoaded', cargarReportes);
+    </script>
+</body>
+</html>
