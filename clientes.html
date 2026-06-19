@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8"><title>Te lo llevo V2 - Clientes</title>
+    <meta charset="UTF-8">
+    <title>Te lo llevo V2 - Clientes</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,22 +15,31 @@
         </nav>
     </header>
     <main class="dashboard-container">
-        <h2 class="page-title">Clientes</h2>
+        <h2 class="page-title">Gestión de Clientes</h2>
         <div class="content-layout">
             <div class="form-container"><div class="form-card">
                 <h3>Registrar Cliente</h3>
                 <form id="clienteForm">
                     <div class="form-group"><label>Nombre Completo</label><input type="text" id="clienteNombre" class="form-control" required></div>
-                    <button type="submit" class="btn-primary">Guardar</button>
+                    <button type="submit" class="btn-primary">Guardar Cliente</button>
                 </form>
             </div></div>
             <div class="table-container"><div class="table-card">
-                <table class="data-table"><thead><tr><th>ID</th><th>Nombre</th></tr></thead><tbody id="tableBody"></tbody></table>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
             </div></div>
         </div>
     </main>
     <script type="module">
-        import { db, collection, addDoc, getDocs, query, where } from "./firebase-config.js";
+        import { db, collection, addDoc, getDocs, query, where, updateDoc, doc } from "./firebase-config.js";
         const form = document.getElementById('clienteForm');
         const tbody = document.getElementById('tableBody');
 
@@ -37,9 +47,29 @@
             tbody.innerHTML = '';
             const q = query(collection(db, "clientes"), where("activo", "==", true));
             const snap = await getDocs(q);
-            snap.forEach(d => {
-                const data = d.data();
-                tbody.innerHTML += `<tr><td><strong>${data.id_auto}</strong></td><td>${data.nombre}</td></tr>`;
+            
+            snap.forEach(docSnap => {
+                const data = docSnap.data();
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${data.id_auto}</strong></td>
+                    <td>${data.nombre}</td>
+                    <td>
+                        <button class="action-btn btn-delete btn-borrar-cli" data-id="${docSnap.id}">Borrar</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Asignar evento de borrado lógico
+            document.querySelectorAll('.btn-borrar-cli').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    if (confirm("¿Seguro que desea eliminar este cliente? (No afectará reportes de nóminas pasadas)")) {
+                        const docId = e.target.getAttribute('data-id');
+                        await updateDoc(doc(db, "clientes", docId), { activo: false });
+                        cargar(); // Recargar tabla
+                    }
+                });
             });
         }
 
@@ -50,7 +80,8 @@
                 nombre: document.getElementById('clienteNombre').value.trim(),
                 activo: true
             });
-            form.reset(); cargar();
+            form.reset(); 
+            cargar();
         });
         document.addEventListener('DOMContentLoaded', cargar);
     </script>
