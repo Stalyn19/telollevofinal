@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <title>Te lo llevo V2 - Historial de Reportes</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- NUEVO: Cargamos la librería para conversión y descarga directa de PDFs de forma limpia -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
     <header class="main-header">
@@ -20,34 +22,71 @@
     </header>
 
     <main class="dashboard-container" id="mainContent">
-        <h2 class="page-title">Historial Semanal de Reportes Consolidados</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2 class="page-title" style="margin-bottom: 0;">Historial Semanal de Reportes Consolidados</h2>
+            <!-- NUEVO: Botón maestro para limpiar el historial con advertencia visual -->
+            <button id="btnAbrirBorrado" class="btn-corte" style="margin-bottom: 0; background: linear-gradient(135deg, #e53e3e 0%, #b83232 100%);">🗑️ Vaciar Historial de Reportes</button>
+        </div>
+
         <div id="reportesContainer">
             <p style="text-align:center; color:var(--text-muted);">No se han realizado cortes de semana todavía.</p>
         </div>
     </main>
 
+    <!-- NUEVO: Ventana Emergente (Modal) para el Reporte Detallado del Cliente con opción de PDF -->
     <div id="clienteModal" class="modal">
         <div class="modal-content" style="max-width: 650px; text-align: left;">
-            <h3 id="modalClienteNombre" style="color: #1e3c72;"></h3>
-            <p id="modalClientePeriodo" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;"></p>
             
-            <div style="max-height: 320px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px;">
-                <table class="data-table" style="margin-top: 0;">
-                    <thead>
-                        <tr>
-                            <th>Fecha y Hora</th>
-                            <th>Mercancía / Detalle</th>
-                            <th>Precio</th>
-                        </tr>
-                    </thead>
-                    <tbody id="modalClienteTablaBody"></tbody>
-                </table>
+            <!-- Contenedor limpio que se convertirá en PDF (Excluye los botones de acción) -->
+            <div id="pdfWrapper" style="padding: 15px; background: #ffffff;">
+                <!-- Encabezado del PDF -->
+                <div style="border-bottom: 2px solid #1e3c72; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="color: #1e3c72; margin: 0; font-size: 1.6rem;">Te lo llevo 🏍️</h2>
+                        <small style="color: #64748b;">Comprobante Oficial de Envíos</small>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 0.85rem; font-weight: bold; color: #1e3c72;">REPORTE CORPORATIVO</span>
+                    </div>
+                </div>
+
+                <h3 id="modalClienteNombre" style="color: #1e3c72; margin-bottom: 5px;"></h3>
+                <p id="modalClientePeriodo" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;"></p>
+                
+                <div style="border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
+                    <table class="data-table" style="margin-top: 0; width: 100%;">
+                        <thead>
+                            <tr>
+                                <th style="background-color: #f1f5f9; padding: 10px;">Fecha y Hora</th>
+                                <th style="background-color: #f1f5f9; padding: 10px;">Mercancía / Detalle</th>
+                                <th style="background-color: #f1f5f9; padding: 10px; text-align: right;">Precio</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalClienteTablaBody"></tbody>
+                    </table>
+                </div>
+                
+                <div style="margin-top: 1.5rem; text-align: right; font-size: 1.2rem; border-top: 2px dashed #cbd5e1; padding-top: 10px;">
+                    <strong>Total General Acumulado: <span id="modalClienteTotal" style="color: var(--success-green);"></span></strong>
+                </div>
             </div>
             
-            <div style="margin-top: 1.2rem; text-align: right; font-size: 1.15rem;">
-                <strong>Total Acumulado: <span id="modalClienteTotal" style="color: var(--success-green);"></span></strong>
+            <!-- Botones de control fuera del área del PDF -->
+            <div style="display: flex; gap: 10px; margin-top: 1rem; padding: 0 15px;">
+                <button id="btnDescargarPDF" class="btn-primary" style="background: var(--success-green); flex: 1;">📥 Descargar PDF en PC</button>
+                <button id="btnCerrarClienteModal" class="btn-primary" style="background: #64748b; width: 120px;">Cerrar</button>
             </div>
-            <button id="btnCerrarClienteModal" class="btn-primary" style="margin-top: 1.5rem; background: #64748b;">Cerrar Ventana</button>
+        </div>
+    </div>
+
+    <!-- MODAL DE PROTECCIÓN: Confirmación de contraseña para vaciar reportes -->
+    <div id="borrarModal" class="modal">
+        <div class="modal-content">
+            <h3 style="color: var(--accent-red);">⚠️ Advertencia de Seguridad Crítica</h3>
+            <p style="margin-top: 0.5rem; font-size: 0.95rem; color: var(--text-dark);">Esta acción destruirá de forma permanente todos los cierres de nóminas y reportes históricos en Firebase. Escribe la contraseña maestra:</p>
+            <input type="password" id="borrarPassword" class="form-control" placeholder="Contraseña de Seguridad" style="margin: 1.2rem 0;">
+            <button id="btnConfirmarBorrado" class="btn-primary" style="background: var(--accent-red);">Confirmar Eliminación Completa</button>
+            <button id="btnCancelarBorrado" class="btn-primary" style="background: #64748b; margin-top: 0.5rem;">Cancelar Operación</button>
         </div>
     </div>
 
@@ -60,15 +99,25 @@
 
     <script type="module">
         import { db, collection, getDocs } from "./firebase-config.js";
+        // Importamos métodos nativos necesarios de Firestore para barrer registros
+        import { deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Mapeo en memoria para almacenar las órdenes de los cortes sin sobrecargar la red
         let baseDatosCortesMemory = {};
+        let clienteNombreActualParaPDF = "Cliente"; // Variable auxiliar para renombrar el archivo descargado
+
+        const container = document.getElementById('reportesContainer');
+        const btnAbrirBorrado = document.getElementById('btnAbrirBorrado');
+        const borrarModal = document.getElementById('borrarModal');
+        const borrarPassword = document.getElementById('borrarPassword');
+        const btnConfirmarBorrado = document.getElementById('btnConfirmarBorrado');
+        const btnCancelarBorrado = document.getElementById('btnCancelarBorrado');
 
         async function cargarReportes() {
-            const container = document.getElementById('reportesContainer');
             const snap = await getDocs(collection(db, "cortes_semanales"));
-            
-            if(snap.empty) return;
+            if(snap.empty) {
+                container.innerHTML = '<p style="text-align:center; color:var(--text-muted);">No se han realizado cortes de semana todavía.</p>';
+                return;
+            }
             container.innerHTML = '';
 
             snap.forEach(docSnap => {
@@ -76,7 +125,6 @@
                 const block = document.createElement('div');
                 block.className = 'report-block';
 
-                // Guardar pedidos en el mapa indexado por el ID del documento
                 baseDatosCortesMemory[docSnap.id] = corte.pedidos;
 
                 const empData = {};
@@ -147,7 +195,6 @@
                     `;
                 }
 
-                // NUEVO: Modificación de la tabla para enlazar el evento clic en el nombre del cliente
                 htmlContent += `</tbody></table><h4>👥 Resumen de Facturación Clientes (Haz clic en un cliente para ver detalles)</h4><table class="data-table"><thead><tr><th>Cliente</th><th>Viajes Recibidos</th><th>Balance Acumulado</th></tr></thead><tbody>`;
 
                 for(let c in cliData) {
@@ -170,7 +217,7 @@
                 container.appendChild(block);
             });
 
-            // ACTIVACIÓN DE LOS ENLACES DE CLIENTES (VENTANA EMERGENTE)
+            // Evento Click para abrir reporte detallado de un Cliente
             document.querySelectorAll('.link-cliente-detalle').forEach(link => {
                 link.addEventListener('click', (e) => {
                     const corteId = e.currentTarget.getAttribute('data-corte-id');
@@ -178,13 +225,13 @@
                     const clienteNombre = e.currentTarget.getAttribute('data-cliente-nombre');
                     const periodo = e.currentTarget.getAttribute('data-periodo');
 
-                    // Filtrar los pedidos guardados correspondientes a este cliente y corte
+                    clienteNombreActualParaPDF = clienteNombre.replace(/\s+/g, '_'); // Formatear nombre para el archivo
+
                     const todosLosPedidosDelCorte = baseDatosCortesMemory[corteId] || [];
                     const pedidosFiltrados = todosLosPedidosDelCorte.filter(p => p.id_cliente === clienteId);
 
-                    // Poblar textos del Modal
-                    document.getElementById('modalClienteNombre').textContent = `📄 Reporte de Envíos: ${clienteNombre}`;
-                    document.getElementById('modalClientePeriodo').textContent = `Corte correspondiente al período: ${periodo}`;
+                    document.getElementById('modalClienteNombre').textContent = `Cliente: ${clienteNombre}`;
+                    document.getElementById('modalClientePeriodo').textContent = `Historial consolidado del rango: ${periodo}`;
                     
                     const modalBody = document.getElementById('modalClienteTablaBody');
                     modalBody.innerHTML = '';
@@ -192,63 +239,44 @@
 
                     pedidosFiltrados.forEach(p => {
                         cuentaTotal += parseFloat(p.precio || 0);
-                        const fechaMostrar = p.fecha_hora_pedido || "Sin registro de hora";
+                        const fechaMostrar = p.fecha_hora_pedido || "Sin registro cronológico";
                         
                         modalBody.innerHTML += `
                             <tr>
-                                <td>${fechaMostrar}</td>
-                                <td><strong>${p.detalle_pedido}</strong></td>
-                                <td style="color:var(--text-dark); font-weight:600;">RD$ ${parseFloat(p.precio).toFixed(2)}</td>
+                                <td style="padding: 8px 10px;">${fechaMostrar}</td>
+                                <td style="padding: 8px 10px;"><strong>${p.detalle_pedido}</strong></td>
+                                <td style="padding: 8px 10px; text-align: right; font-weight: 600;">RD$ ${parseFloat(p.precio).toFixed(2)}</td>
                             </tr>
                         `;
                     });
 
                     document.getElementById('modalClienteTotal').textContent = `RD$ ${cuentaTotal.toFixed(2)}`;
-                    
-                    // Mostrar la ventana emergente
                     document.getElementById('clienteModal').style.display = 'flex';
                 });
             });
 
-            // Lógica de impresión del Ticket Térmico de 55mm
+            // Tickets térmicos de 55mm
             document.querySelectorAll('.btn-print').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const t = JSON.parse(e.target.getAttribute('data-ticket'));
                     const printArea = document.getElementById('ticketPrintArea');
-                    
                     printArea.className = "ticket-print-area";
                     printArea.innerHTML = `
 ------------------------
       TE LO LLEVO V2    
    Servicio de Motores  
 ------------------------
-PERIODO: 
-${t.periodo}
+PERIODO: \n${t.periodo}
 ------------------------
-MENSAJERO:
-${t.nombre} (${t.id})
+MENSAJERO:\n${t.nombre} (${t.id})
 ------------------------
 VIAJES REALIZADOS: ${t.viajes}
 ------------------------
-SUELDO BRUTO:
-RD$ ${t.bruto}
-
-DESCUENTO OPERATIVO:
--RD$ ${t.descuento} (RD$50xV)
+SUELDO BRUTO:\nRD$ ${t.bruto}\n\nDESCUENTO OPERATIVO:\n-RD$ ${t.descuento} (RD$50xV)
 ------------------------
-SUELDO NETO A PAGAR:
-RD$ ${t.neto}
+SUELDO NETO A PAGAR:\nRD$ ${t.neto}
 ------------------------
-Firma Conforme:
-
-
-________________________
-PROCESADO:
-${t.procesado}
-------------------------
-¡Eficiencia sobre ruedas!
-------------------------
-                    `;
+Firma Conforme:\n\n\n________________________\nPROCESADO:\n${t.procesado}\n------------------------\n¡Eficiencia sobre ruedas!\n------------------------`;
                     window.print();
                     printArea.className = "ticket-print-hidden";
                     printArea.innerHTML = "";
@@ -256,10 +284,56 @@ ${t.procesado}
             });
         }
 
-        // Lógica para cerrar la ventana emergente
+        // NUEVO: EJECUCIÓN DE CONVERSIÓN Y DESCARGA AUTOMÁTICA A PDF (LADO CLIENTE)
+        document.getElementById('btnDescargarPDF').addEventListener('click', () => {
+            const targetElement = document.getElementById('pdfWrapper');
+            
+            // Configuración del layout y márgenes del PDF descargable
+            const configuracionPdf = {
+                margin:       0.4,
+                filename:     `Reporte_Envios_${clienteNombreActualParaPDF}_2026.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, logging: false, useCORS: true },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            // Ejecutar conversión nativa en background y guardar en descargas
+            html2pdf().set(configuracionPdf).from(targetElement).save();
+        });
+
+        // Eventos del Modal de Cliente
         const clModal = document.getElementById('clienteModal');
         document.getElementById('btnCerrarClienteModal').addEventListener('click', () => clModal.style.display = 'none');
-        window.addEventListener('click', (e) => { if (e.target === clModal) clModal.style.display = 'none'; });
+
+        // Control de Modal de Borrado Protegido
+        btnAbrirBorrado.addEventListener('click', () => { borrarModal.style.display = 'flex'; borrarPassword.value = ''; borrarPassword.focus(); });
+        btnCancelarBorrado.addEventListener('click', () => borrarModal.style.display = 'none');
+
+        btnConfirmarBorrado.addEventListener('click', async () => {
+            if (borrarPassword.value !== "te_lo_llevo_2026") {
+                alert("❌ Contraseña incorrecta corporativa. Operación abortada.");
+                return;
+            }
+
+            if (confirm("🚨 ATENCIÓN: Estás a punto de vaciar de forma irreversible todo el historial. ¿Proceder?")) {
+                try {
+                    const snap = await getDocs(collection(db, "cortes_semanales"));
+                    for (let docSnap of snap.docs) {
+                        await deleteDoc(doc(db, "cortes_semanales", docSnap.id));
+                    }
+                    alert("🗑️ Historial de reportes completamente eliminado.");
+                    borrarModal.style.display = 'none';
+                    await cargarReportes();
+                } catch (error) {
+                    alert("Error crítico de Firebase: " + error.message);
+                }
+            }
+        });
+
+        window.addEventListener('click', (e) => { 
+            if (e.target === clModal) clModal.style.display = 'none'; 
+            if (e.target === borrarModal) borrarModal.style.display = 'none'; 
+        });
 
         document.addEventListener('DOMContentLoaded', cargarReportes);
     </script>
