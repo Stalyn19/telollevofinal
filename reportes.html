@@ -1,17 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8"><title>Te lo llevo V2 - Historial de Reportes</title>
+    <meta charset="UTF-8">
+    <title>Te lo llevo V2 - Historial de Reportes</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <header class="main-header">
-        <div class="logo">
-            <a href="index.html">
-                <img src="logo.png" alt="Te lo llevo Logo" class="logo-img">
-                <span class="logo-text">Te lo llevo</span>
-            </a>
-        </div>
+        <div class="logo"><a href="index.html"><h1>Te lo llevo 🏍️</h1></a></div>
         <nav class="nav-menu">
             <a href="index.html">Panel Principal</a>
             <a href="reportes.html" class="active">Reportes Históricos</a>
@@ -19,11 +15,25 @@
     </header>
 
     <main class="dashboard-container" id="mainContent">
-        <h2 class="page-title">Historial Semanal de Reportes Consolidados</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2 class="page-title" style="margin-bottom: 0;">Historial Semanal de Reportes Consolidados</h2>
+            <button id="btnAbrirBorrado" class="btn-corte" style="margin-bottom: 0; background: linear-gradient(135deg, #e53e3e 0%, #cbd5e1 200%);">🗑️ Vaciar Historial de Reportes</button>
+        </div>
+
         <div id="reportesContainer">
             <p style="text-align:center; color:var(--text-muted);">No se han realizado cortes de semana todavía.</p>
         </div>
     </main>
+
+    <div id="borrarModal" class="modal">
+        <div class="modal-content">
+            <h3 style="color: var(--accent-red);">⚠️ Acción Crítica</h3>
+            <p style="margin-top: 0.5rem; font-size: 0.95rem; color: var(--text-dark);">Esta acción eliminará de forma permanente todos los reportes archivados en Firebase. Introduce la contraseña maestra:</p>
+            <input type="password" id="borrarPassword" class="form-control" placeholder="Contraseña de Seguridad" style="margin: 1.2rem 0;">
+            <button id="btnConfirmarBorrado" class="btn-primary" style="background: var(--accent-red);">Eliminar Todo Permanente</button>
+            <button id="btnCancelarBorrado" class="btn-primary" style="background: #64748b; margin-top: 0.5rem;">Cancelar</button>
+        </div>
+    </div>
 
     <div id="ticketPrintArea" class="ticket-print-hidden"></div>
 
@@ -34,12 +44,24 @@
 
     <script type="module">
         import { db, collection, getDocs } from "./firebase-config.js";
+        // NUEVO: Importamos las funciones nativas de borrado de documentos de Firebase
+        import { deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+        const container = document.getElementById('reportesContainer');
+        const btnAbrirBorrado = document.getElementById('btnAbrirBorrado');
+        const borrarModal = document.getElementById('borrarModal');
+        const borrarPassword = document.getElementById('borrarPassword');
+        const btnConfirmarBorrado = document.getElementById('btnConfirmarBorrado');
+        const btnCancelarBorrado = document.getElementById('btnCancelarBorrado');
+
+        // Cargar y renderizar los reportes desde Firebase
         async function cargarReportes() {
-            const container = document.getElementById('reportesContainer');
             const snap = await getDocs(collection(db, "cortes_semanales"));
             
-            if(snap.empty) return;
+            if(snap.empty) {
+                container.innerHTML = '<p style="text-align:center; color:var(--text-muted);">No se han realizado cortes de semana todavía.</p>';
+                return;
+            }
             container.innerHTML = '';
 
             snap.forEach(docSnap => {
@@ -64,14 +86,8 @@
                     cliData[p.id_cliente].acumulado += parseFloat(p.precio || 0);
                 });
 
-                // NUEVO: Se añade de forma explícita la fecha y hora de procesamiento en el encabezado del reporte
-                const estampadoTiempo = corte.fecha_corte || "Fecha no especificada";
-
                 let htmlContent = `
-                    <div class="report-header-title">
-                        📋 Nómina - Período: Semanal del ${corte.periodo}
-                        <br><span style="font-size:0.85rem; font-weight:normal; opacity:0.85;">Procesado el: ${estampadoTiempo}</span>
-                    </div>
+                    <div class="report-header-title">📋 Nómina - Período: Semanal del ${corte.periodo}</div>
                     
                     <h4>🛵 Resumen de Liquidación a Mensajeros</h4>
                     <table class="data-table" style="margin-bottom:1.5rem;">
@@ -100,8 +116,7 @@
                         viajes: e.viajes, 
                         bruto: e.bruto.toFixed(2), 
                         descuento: descuento.toFixed(2), 
-                        neto: neto.toFixed(2),
-                        procesado: estampadoTiempo // Acoplado para el ticket físico
+                        neto: neto.toFixed(2) 
                     };
 
                     htmlContent += `
@@ -128,6 +143,7 @@
                 container.appendChild(block);
             });
 
+            // Re-vincular eventos de los tickets térmicos
             document.querySelectorAll('.btn-print').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const t = JSON.parse(e.target.getAttribute('data-ticket'));
@@ -160,9 +176,8 @@ Firma Conforme:
 
 
 ________________________
-PROCESADO:
-${t.procesado}
-------------------------
+Fecha Impresión: 2026
+
 ¡Eficiencia sobre ruedas!
 ------------------------
                     `;
@@ -172,6 +187,48 @@ ${t.procesado}
                 });
             });
         }
+
+        // CONTROL DEL MODAL DE BORRADO
+        btnAbrirBorrado.addEventListener('click', () => {
+            borrarModal.style.display = 'flex';
+            borrarPassword.value = '';
+            borrarPassword.focus();
+        });
+
+        btnCancelarBorrado.addEventListener('click', () => {
+            borrarModal.style.display = 'none';
+        });
+
+        // LÓGICA DE ELIMINACIÓN DE DOCUMENTOS EN FIREBASE
+        btnConfirmarBorrado.addEventListener('click', async () => {
+            // Verificación de la contraseña de control
+            if (borrarPassword.value !== "te_lo_llevo_2026") {
+                alert("❌ Contraseña incorrecta. No tienes autorización para limpiar el historial.");
+                return;
+            }
+
+            if (confirm("¿Estás absolutamente seguro? Esta operación no se puede deshacer en la nube.")) {
+                try {
+                    // Obtener todos los reportes existentes
+                    const snap = await getDocs(collection(db, "cortes_semanales"));
+                    
+                    // Recorrer y borrar cada documento de forma individual en Firestore
+                    for (let docSnap of snap.docs) {
+                        await deleteDoc(doc(db, "cortes_semanales", docSnap.id));
+                    }
+
+                    alert("🗑️ El historial de reportes ha sido vaciado por completo.");
+                    borrarModal.style.display = 'none';
+                    await cargarReportes(); // Recargar la interfaz (volverá a mostrar el mensaje de vacío)
+                } catch (error) {
+                    alert("Error al intentar borrar los datos de Firebase: " + error.message);
+                }
+            }
+        });
+
+        // Cerrar modal si se hace clic fuera del recuadro
+        window.addEventListener('click', (e) => { if (e.target === borrarModal) borrarModal.style.display = 'none'; });
+
         document.addEventListener('DOMContentLoaded', cargarReportes);
     </script>
 </body>
