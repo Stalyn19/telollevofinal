@@ -285,21 +285,54 @@ Firma Conforme:\n\n\n________________________\nPROCESADO:\n${t.procesado}\n-----
         }
 
         // NUEVO: EJECUCIÓN DE CONVERSIÓN Y DESCARGA AUTOMÁTICA A PDF (LADO CLIENTE)
-        document.getElementById('btnDescargarPDF').addEventListener('click', () => {
-            const targetElement = document.getElementById('pdfWrapper');
-            
-            // Configuración del layout y márgenes del PDF descargable
-            const configuracionPdf = {
-                margin:       0.4,
-                filename:     `Reporte_Envios_${clienteNombreActualParaPDF}_2026.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, logging: false, useCORS: true },
-                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-            };
+// ==========================================================================
+// SOLUCIÓN AL PDF EN BLANCO: GENERADOR POR CLONACIÓN INVISIBLE
+// ==========================================================================
+document.getElementById('btnDescargarPDF').addEventListener('click', () => {
+    const contenedorOriginal = document.getElementById('pdfWrapper');
+    
+    // 1. Creamos un clon exacto del reporte para no alterar lo que el usuario ve en pantalla
+    const clonInvisible = contenedorOriginal.cloneNode(true);
+    
+    // 2. Buscamos el contenedor de la tabla dentro del clon y le rompemos el límite de scroll
+    // Esto asegura que si la tabla es larga, el PDF se expanda automáticamente y no salga cortado
+    const tablaScroll = clonInvisible.querySelector('div[style*="overflow-y"]');
+    if (tablaScroll) {
+        tablaScroll.style.maxHeight = 'none';
+        tablaScroll.style.overflowY = 'visible';
+    }
+    
+    // 3. Posicionamos el clon completamente fuera de la pantalla para que el usuario no lo note
+    clonInvisible.style.position = 'absolute';
+    clonInvisible.style.left = '-9999px';
+    clonInvisible.style.top = '0';
+    clonInvisible.style.width = '7.5in'; // Forzamos el ancho estándar de una hoja carta (8.5 pulg. menos márgenes)
+    clonInvisible.style.background = '#ffffff';
+    
+    // 4. Lo inyectamos temporalmente al cuerpo del documento
+    document.body.appendChild(clonInvisible);
+    
+    // Configuración optimizada de renderizado gráfico
+    const configuracionPdf = {
+        margin:       0.5,
+        filename:     `Reporte_Envios_${clienteNombreActualParaPDF}_2026.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { 
+            scale: 2,         // Doble resolución para que las letras no salgan borrosas
+            useCORS: true,    // Evita bloqueos de seguridad de imágenes
+            logging: false    // Limpia la consola de mensajes basura
+        },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
 
-            // Ejecutar conversión nativa en background y guardar en descargas
-            html2pdf().set(configuracionPdf).from(targetElement).save();
-        });
+    // 5. Ordenamos a la librería procesar el clon limpio y libre de flexbox
+    html2pdf().set(configuracionPdf).from(clonInvisible).save().then(() => {
+        // 6. ¡Éxito! Una vez descargado en la PC, destruimos el clon para no dejar basura en el HTML
+        document.body.removeChild(clonInvisible);
+    }).catch((error) => {
+        alert("Error al generar el documento PDF: " + error.message);
+    });
+});
 
         // Eventos del Modal de Cliente
         const clModal = document.getElementById('clienteModal');
