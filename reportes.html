@@ -7,7 +7,12 @@
 </head>
 <body>
     <header class="main-header">
-        <div class="logo"><a href="index.html"><h1>Te lo llevo 🏍️</h1></a></div>
+        <div class="logo">
+            <a href="index.html">
+                <img src="logo.png" alt="Te lo llevo Logo" class="logo-img">
+                <span class="logo-text">Te lo llevo</span>
+            </a>
+        </div>
         <nav class="nav-menu">
             <a href="index.html">Panel Principal</a>
             <a href="reportes.html" class="active">Reportes Históricos</a>
@@ -15,23 +20,34 @@
     </header>
 
     <main class="dashboard-container" id="mainContent">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <h2 class="page-title" style="margin-bottom: 0;">Historial Semanal de Reportes Consolidados</h2>
-            <button id="btnAbrirBorrado" class="btn-corte" style="margin-bottom: 0; background: linear-gradient(135deg, #e53e3e 0%, #cbd5e1 200%);">🗑️ Vaciar Historial de Reportes</button>
-        </div>
-
+        <h2 class="page-title">Historial Semanal de Reportes Consolidados</h2>
         <div id="reportesContainer">
             <p style="text-align:center; color:var(--text-muted);">No se han realizado cortes de semana todavía.</p>
         </div>
     </main>
 
-    <div id="borrarModal" class="modal">
-        <div class="modal-content">
-            <h3 style="color: var(--accent-red);">⚠️ Acción Crítica</h3>
-            <p style="margin-top: 0.5rem; font-size: 0.95rem; color: var(--text-dark);">Esta acción eliminará de forma permanente todos los reportes archivados en Firebase. Introduce la contraseña maestra:</p>
-            <input type="password" id="borrarPassword" class="form-control" placeholder="Contraseña de Seguridad" style="margin: 1.2rem 0;">
-            <button id="btnConfirmarBorrado" class="btn-primary" style="background: var(--accent-red);">Eliminar Todo Permanente</button>
-            <button id="btnCancelarBorrado" class="btn-primary" style="background: #64748b; margin-top: 0.5rem;">Cancelar</button>
+    <div id="clienteModal" class="modal">
+        <div class="modal-content" style="max-width: 650px; text-align: left;">
+            <h3 id="modalClienteNombre" style="color: #1e3c72;"></h3>
+            <p id="modalClientePeriodo" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;"></p>
+            
+            <div style="max-height: 320px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px;">
+                <table class="data-table" style="margin-top: 0;">
+                    <thead>
+                        <tr>
+                            <th>Fecha y Hora</th>
+                            <th>Mercancía / Detalle</th>
+                            <th>Precio</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalClienteTablaBody"></tbody>
+                </table>
+            </div>
+            
+            <div style="margin-top: 1.2rem; text-align: right; font-size: 1.15rem;">
+                <strong>Total Acumulado: <span id="modalClienteTotal" style="color: var(--success-green);"></span></strong>
+            </div>
+            <button id="btnCerrarClienteModal" class="btn-primary" style="margin-top: 1.5rem; background: #64748b;">Cerrar Ventana</button>
         </div>
     </div>
 
@@ -44,30 +60,24 @@
 
     <script type="module">
         import { db, collection, getDocs } from "./firebase-config.js";
-        // NUEVO: Importamos las funciones nativas de borrado de documentos de Firebase
-        import { deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        const container = document.getElementById('reportesContainer');
-        const btnAbrirBorrado = document.getElementById('btnAbrirBorrado');
-        const borrarModal = document.getElementById('borrarModal');
-        const borrarPassword = document.getElementById('borrarPassword');
-        const btnConfirmarBorrado = document.getElementById('btnConfirmarBorrado');
-        const btnCancelarBorrado = document.getElementById('btnCancelarBorrado');
+        // Mapeo en memoria para almacenar las órdenes de los cortes sin sobrecargar la red
+        let baseDatosCortesMemory = {};
 
-        // Cargar y renderizar los reportes desde Firebase
         async function cargarReportes() {
+            const container = document.getElementById('reportesContainer');
             const snap = await getDocs(collection(db, "cortes_semanales"));
             
-            if(snap.empty) {
-                container.innerHTML = '<p style="text-align:center; color:var(--text-muted);">No se han realizado cortes de semana todavía.</p>';
-                return;
-            }
+            if(snap.empty) return;
             container.innerHTML = '';
 
             snap.forEach(docSnap => {
                 const corte = docSnap.data();
                 const block = document.createElement('div');
                 block.className = 'report-block';
+
+                // Guardar pedidos en el mapa indexado por el ID del documento
+                baseDatosCortesMemory[docSnap.id] = corte.pedidos;
 
                 const empData = {};
                 const cliData = {};
@@ -86,8 +96,13 @@
                     cliData[p.id_cliente].acumulado += parseFloat(p.precio || 0);
                 });
 
+                const estampadoTiempo = corte.fecha_corte || "Fecha no especificada";
+
                 let htmlContent = `
-                    <div class="report-header-title">📋 Nómina - Período: Semanal del ${corte.periodo}</div>
+                    <div class="report-header-title">
+                        📋 Nómina - Período: Semanal del ${corte.periodo}
+                        <br><span style="font-size:0.85rem; font-weight:normal; opacity:0.85;">Procesado el: ${estampadoTiempo}</span>
+                    </div>
                     
                     <h4>🛵 Resumen de Liquidación a Mensajeros</h4>
                     <table class="data-table" style="margin-bottom:1.5rem;">
@@ -116,7 +131,8 @@
                         viajes: e.viajes, 
                         bruto: e.bruto.toFixed(2), 
                         descuento: descuento.toFixed(2), 
-                        neto: neto.toFixed(2) 
+                        neto: neto.toFixed(2),
+                        procesado: estampadoTiempo
                     };
 
                     htmlContent += `
@@ -131,11 +147,22 @@
                     `;
                 }
 
-                htmlContent += `</tbody></table><h4>👥 Resumen de Facturación Clientes</h4><table class="data-table"><thead><tr><th>Cliente</th><th>Viajes Recibidos</th><th>Balance Acumulado</th></tr></thead><tbody>`;
+                // NUEVO: Modificación de la tabla para enlazar el evento clic en el nombre del cliente
+                htmlContent += `</tbody></table><h4>👥 Resumen de Facturación Clientes (Haz clic en un cliente para ver detalles)</h4><table class="data-table"><thead><tr><th>Cliente</th><th>Viajes Recibidos</th><th>Balance Acumulado</th></tr></thead><tbody>`;
 
                 for(let c in cliData) {
                     const cl = cliData[c];
-                    htmlContent += `<tr><td><strong>${cl.nombre}</strong></td><td>${cl.viajes} envíos</td><td>RD$ ${cl.acumulado.toFixed(2)}</td></tr>`;
+                    htmlContent += `
+                        <tr>
+                            <td>
+                                <span class="link-cliente-detalle" data-corte-id="${docSnap.id}" data-cliente-id="${c}" data-cliente-nombre="${cl.nombre}" data-periodo="${corte.periodo}" style="cursor:pointer; color:#1e3c72; text-decoration:underline; font-weight:600;">
+                                    ${cl.nombre}
+                                </span>
+                            </td>
+                            <td>${cl.viajes} envíos</td>
+                            <td><strong>RD$ ${cl.acumulado.toFixed(2)}</strong></td>
+                        </tr>
+                    `;
                 }
 
                 htmlContent += `</tbody></table>`;
@@ -143,7 +170,47 @@
                 container.appendChild(block);
             });
 
-            // Re-vincular eventos de los tickets térmicos
+            // ACTIVACIÓN DE LOS ENLACES DE CLIENTES (VENTANA EMERGENTE)
+            document.querySelectorAll('.link-cliente-detalle').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const corteId = e.currentTarget.getAttribute('data-corte-id');
+                    const clienteId = e.currentTarget.getAttribute('data-cliente-id');
+                    const clienteNombre = e.currentTarget.getAttribute('data-cliente-nombre');
+                    const periodo = e.currentTarget.getAttribute('data-periodo');
+
+                    // Filtrar los pedidos guardados correspondientes a este cliente y corte
+                    const todosLosPedidosDelCorte = baseDatosCortesMemory[corteId] || [];
+                    const pedidosFiltrados = todosLosPedidosDelCorte.filter(p => p.id_cliente === clienteId);
+
+                    // Poblar textos del Modal
+                    document.getElementById('modalClienteNombre').textContent = `📄 Reporte de Envíos: ${clienteNombre}`;
+                    document.getElementById('modalClientePeriodo').textContent = `Corte correspondiente al período: ${periodo}`;
+                    
+                    const modalBody = document.getElementById('modalClienteTablaBody');
+                    modalBody.innerHTML = '';
+                    let cuentaTotal = 0;
+
+                    pedidosFiltrados.forEach(p => {
+                        cuentaTotal += parseFloat(p.precio || 0);
+                        const fechaMostrar = p.fecha_hora_pedido || "Sin registro de hora";
+                        
+                        modalBody.innerHTML += `
+                            <tr>
+                                <td>${fechaMostrar}</td>
+                                <td><strong>${p.detalle_pedido}</strong></td>
+                                <td style="color:var(--text-dark); font-weight:600;">RD$ ${parseFloat(p.precio).toFixed(2)}</td>
+                            </tr>
+                        `;
+                    });
+
+                    document.getElementById('modalClienteTotal').textContent = `RD$ ${cuentaTotal.toFixed(2)}`;
+                    
+                    // Mostrar la ventana emergente
+                    document.getElementById('clienteModal').style.display = 'flex';
+                });
+            });
+
+            // Lógica de impresión del Ticket Térmico de 55mm
             document.querySelectorAll('.btn-print').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const t = JSON.parse(e.target.getAttribute('data-ticket'));
@@ -176,8 +243,9 @@ Firma Conforme:
 
 
 ________________________
-Fecha Impresión: 2026
-
+PROCESADO:
+${t.procesado}
+------------------------
 ¡Eficiencia sobre ruedas!
 ------------------------
                     `;
@@ -188,46 +256,10 @@ Fecha Impresión: 2026
             });
         }
 
-        // CONTROL DEL MODAL DE BORRADO
-        btnAbrirBorrado.addEventListener('click', () => {
-            borrarModal.style.display = 'flex';
-            borrarPassword.value = '';
-            borrarPassword.focus();
-        });
-
-        btnCancelarBorrado.addEventListener('click', () => {
-            borrarModal.style.display = 'none';
-        });
-
-        // LÓGICA DE ELIMINACIÓN DE DOCUMENTOS EN FIREBASE
-        btnConfirmarBorrado.addEventListener('click', async () => {
-            // Verificación de la contraseña de control
-            if (borrarPassword.value !== "te_lo_llevo_2026") {
-                alert("❌ Contraseña incorrecta. No tienes autorización para limpiar el historial.");
-                return;
-            }
-
-            if (confirm("¿Estás absolutamente seguro? Esta operación no se puede deshacer en la nube.")) {
-                try {
-                    // Obtener todos los reportes existentes
-                    const snap = await getDocs(collection(db, "cortes_semanales"));
-                    
-                    // Recorrer y borrar cada documento de forma individual en Firestore
-                    for (let docSnap of snap.docs) {
-                        await deleteDoc(doc(db, "cortes_semanales", docSnap.id));
-                    }
-
-                    alert("🗑️ El historial de reportes ha sido vaciado por completo.");
-                    borrarModal.style.display = 'none';
-                    await cargarReportes(); // Recargar la interfaz (volverá a mostrar el mensaje de vacío)
-                } catch (error) {
-                    alert("Error al intentar borrar los datos de Firebase: " + error.message);
-                }
-            }
-        });
-
-        // Cerrar modal si se hace clic fuera del recuadro
-        window.addEventListener('click', (e) => { if (e.target === borrarModal) borrarModal.style.display = 'none'; });
+        // Lógica para cerrar la ventana emergente
+        const clModal = document.getElementById('clienteModal');
+        document.getElementById('btnCerrarClienteModal').addEventListener('click', () => clModal.style.display = 'none');
+        window.addEventListener('click', (e) => { if (e.target === clModal) clModal.style.display = 'none'; });
 
         document.addEventListener('DOMContentLoaded', cargarReportes);
     </script>
