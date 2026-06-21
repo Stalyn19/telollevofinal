@@ -1,4 +1,4 @@
-import { db, collection, addDoc, getDocs, updateDoc, doc, query, where, serverTimestamp } from "./firebase-config.js";
+import { db, collection, addDoc, getDocs, updateDoc, doc, query, where } from "./firebase-config.js";
 
 const form = document.getElementById('pedidoForm');
 const selectCliente = document.getElementById('idCliente');
@@ -18,24 +18,37 @@ const cortePassword = document.getElementById('cortePassword');
 const btnEjecutarCorte = document.getElementById('btnEjecutarCorte');
 const btnCancelarCorte = document.getElementById('btnCancelarCorte');
 
+// ==========================================================================
+// NUEVA REGLA DE EVALUACIÓN DE PRECIOS POR DISTANCIA (MOTO)
+// ==========================================================================
 function calcularPrecio(dist) {
     if (dist < 0) return 0;
-    if (dist <= 5) return 200;
-    if (dist <= 8) return 250;
-    if (dist <= 11) return 300;
-    if (dist <= 16) return 350;
-    if (dist <= 19) return 400;
-    if (dist <= 28) return 500;
-    if (dist <= 35) return 700;
-    return -1;
+    if (dist <= 5) return 200;   // 0 a 5 KM -> RD$ 200.00
+    if (dist <= 8) return 250;   // 6 a 8 KM -> RD$ 250.00
+    if (dist <= 11) return 300;  // 9 a 11 KM -> RD$ 300.00
+    if (dist <= 16) return 350;  // 12 a 16 KM -> RD$ 350.00
+    if (dist <= 19) return 400;  // 17 a 19 KM -> RD$ 400.00
+    if (dist <= 29) return 500;  // 20 a 28 KM (Incluye 29 para continuidad) -> RD$ 500.00
+    if (dist <= 35) return 700;  // 30 a 35 KM -> RD$ 700.00
+    return -1; // Si excede los 35 KM -> Fuera de cobertura
 }
 
+// Escuchar cambios en la distancia para calcular el precio dinámicamente en pantalla
 inputDistancia.addEventListener('input', () => {
     const d = parseFloat(inputDistancia.value);
     if(!isNaN(d)) {
         const p = calcularPrecio(d);
-        if (p === -1) { inputPrecio.value = "ÁREA SIN COBERTURA"; }
-        else { inputPrecio.value = p.toFixed(2); }
+        if (p === -1) { 
+            inputPrecio.value = "ÁREA SIN COBERTURA"; 
+            inputPrecio.style.color = "red";
+            inputPrecio.style.fontWeight = "bold";
+        } else { 
+            inputPrecio.value = p.toFixed(2); 
+            inputPrecio.style.color = "inherit";
+            inputPrecio.style.fontWeight = "normal";
+        }
+    } else {
+        inputPrecio.value = "0.00";
     }
 });
 
@@ -68,7 +81,6 @@ async function cargarTablas() {
         const d = docSnap.data();
         const tr = document.createElement('tr');
         
-        // CORRECCIÓN CLAVE: Mostrar nombre explícito guardado para evitar campos undefined
         const clienteMuestra = d.nombre_cliente || d.id_cliente;
         const empleadoMuestra = d.nombre_empleado || d.id_empleado;
 
@@ -78,7 +90,7 @@ async function cargarTablas() {
                 <td>${clienteMuestra}</td>
                 <td>${empleadoMuestra}</td>
                 <td>${d.detalle_pedido}</td>
-                <td>RD$ ${d.precio}</td>
+                <td>RD$ ${parseFloat(d.precio).toFixed(2)}</td>
                 <td>
                     <select class="form-control change-status" data-id="${docSnap.id}">
                         <option value="Pendiente" selected>Pendiente</option>
@@ -94,7 +106,7 @@ async function cargarTablas() {
                 <td>${clienteMuestra}</td>
                 <td>${empleadoMuestra}</td>
                 <td>${d.detalle_pedido}</td>
-                <td>RD$ ${d.precio}</td>
+                <td>RD$ ${parseFloat(d.precio).toFixed(2)}</td>
                 <td><span class="badge badge-entregado">${d.estatus}</span></td>
                 <td><button class="action-btn btn-delete btn-soft-del" data-id="${docSnap.id}">Invalidar</button></td>
             `;
@@ -102,7 +114,6 @@ async function cargarTablas() {
         }
     });
 
-    // Evento de cambio de estatus posterior (Dropdown funcional en tabla)
     document.querySelectorAll('.change-status').forEach(select => {
         select.addEventListener('change', async (e) => {
             const id = e.target.getAttribute('data-id');
@@ -111,7 +122,6 @@ async function cargarTablas() {
         });
     });
 
-    // Evento de borrado lógico
     document.querySelectorAll('.btn-soft-del').forEach(b => {
         b.addEventListener('click', async (e) => {
             if(confirm("¿Desea marcar este pedido como Inválido?")) {
@@ -126,12 +136,15 @@ form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const dist = parseFloat(inputDistancia.value);
     const p = calcularPrecio(dist);
-    if(p === -1) { alert("Área sin cobertura."); return; }
+    
+    if(p === -1) { 
+        alert("🚨 Error de Cobertura: El pedido excede el límite permitido o se encuentra en un área sin cobertura. No se puede guardar."); 
+        return; 
+    }
 
     let det = selectPedido.value;
     if(det === "OTRO") det = inputPedidoCustom.value.trim();
 
-    // Guardar los nombres directamente en el documento para evitar que aparezcan undefined
     await addDoc(collection(db, "pedidos"), {
         id_pedido: 'PED-' + Math.floor(100000 + Math.random() * 900000),
         id_cliente: selectCliente.value,
@@ -141,7 +154,7 @@ form.addEventListener('submit', async (e) => {
         detalle_pedido: det,
         distancia: dist,
         precio: p,
-        estatus: "Pendiente", // Comienza siempre pendiente
+        estatus: "Pendiente",
         pago: selectPago.value,
         valido: true,
         fecha: new Date().toISOString()
@@ -150,7 +163,6 @@ form.addEventListener('submit', async (e) => {
     form.reset(); customGroup.style.display="none"; cargarTablas();
 });
 
-// Lógica del Corte de Nómina Semanal Protegido
 btnCorteNomina.addEventListener('click', () => {
     corteModal.style.display = 'flex';
     cortePassword.value = '';
@@ -173,30 +185,27 @@ btnEjecutarCorte.addEventListener('click', async () => {
     });
 
     if(entregados.length === 0) {
-        alert("No hay pedidos con estatus 'Entregado' para realizar el corte de esta semana.");
+        alert("No hay pedidos con estatus 'Entregado' para archivar en este corte.");
         corteModal.style.display = 'none';
         return;
     }
 
-    // Calcular el período basado en las fechas de los pedidos procesados
     entregados.sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
     const primerPedido = entregados[0].fecha.substring(0, 10);
     const ultimoPedido = entregados[entregados.length - 1].fecha.substring(0, 10);
     const periodoStr = `${primerPedido} al ${ultimoPedido}`;
 
-    // Almacenar el bloque en el historial de reportes semanales
     await addDoc(collection(db, "cortes_semanales"), {
         periodo: periodoStr,
         pedidos: entregados,
         fecha_corte: new Date().toISOString()
     });
 
-    // Limpiar de la pantalla operativa (Marcar como archivado/invalido para que desaparezcan de la semana en curso)
     for(let p of entregados) {
         await updateDoc(doc(db, "pedidos", p.id_firestore), { valido: false, archivado: true });
     }
 
-    alert(`¡Corte procesado con éxito para el período: ${periodoStr}! Los pedidos pendientes se quedaron en su sección para procesamiento manual.`);
+    alert(`¡Corte procesado con éxito para el período: ${periodoStr}!`);
     corteModal.style.display = 'none';
     cargarTablas();
 });
