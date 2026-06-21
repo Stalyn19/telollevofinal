@@ -7,7 +7,12 @@
 </head>
 <body>
     <header class="main-header">
-        <div class="logo"><a href="index.html"><h1>Te lo llevo 🏍️</h1></a></div>
+        <div class="logo">
+            <a href="index.html">
+                <img src="logo.png" alt="Te lo llevo Logo" class="logo-img">
+                <span class="logo-text">Te lo llevo</span>
+            </a>
+        </div>
         <nav class="nav-menu">
             <a href="pedidos.html" class="active">Pedidos</a>
             <a href="clientes.html">Clientes</a>
@@ -22,7 +27,7 @@
         </div>
         
         <div class="content-layout">
-            <!-- Formulario de Pedidos (Sin estatus inicial, entra por defecto como Pendiente) -->
+            <!-- Formulario de Pedidos v2 -->
             <div class="form-container">
                 <div class="form-card">
                     <h3>Registrar Nueva Orden</h3>
@@ -37,17 +42,29 @@
                         </div>
                         <div class="form-group">
                             <label for="pedidoSelect">Detalle de Envío</label>
+                            <!-- Listado oficial de mercancías actualizado -->
                             <select id="pedidoSelect" class="form-control" required>
-                                <option value="Entrega de Documentos Legales">Entrega de Documentos Legales</option>
-                                <option value="Comida / Delivery Rápido">Comida / Delivery Rápido</option>
-                                <option value="Repuestos de Vehículos (Merkaparts)">Repuestos de Vehículos (Merkaparts)</option>
-                                <option value="OTRO">Otro (Especificar abajo)...</option>
+                                <option value="">-- Seleccione Tipo de Envío --</option>
+                                <option value="Vimen Paq">Vimen Paq</option>
+                                <option value="Caribe Paq">Caribe Paq</option>
+                                <option value="Ropa">Ropa</option>
+                                <option value="Aire acondicionado">Aire acondicionado</option>
+                                <option value="Refrigerante">Refrigerante</option>
+                                <option value="Termo">Termo</option>
+                                <option value="Mochila">Mochila</option>
+                                <option value="Transporte">Transporte</option>
+                                <option value="Partes de vehiculo">Partes de vehiculo</option>
+                                <option value="Equipos">Equipos</option>
+                                <option value="Maquinas de tatuar">Maquinas de tatuar</option>
                             </select>
                         </div>
-                        <div class="form-group" id="customGroup" style="display:none;">
-                            <label>Detalle Personalizado</label>
-                            <input type="text" id="pedidoCustom" class="form-control">
+
+                        <!-- NUEVO: Campo Dinámico Condicional para Cantidad de Paquetes -->
+                        <div class="form-group" id="paquetesGroup" style="display:none;">
+                            <label for="cantPaquetes">Cantidad de Paquetes (RD$ 170.00 adicional c/u)</label>
+                            <input type="number" id="cantPaquetes" class="form-control" min="1" value="1">
                         </div>
+
                         <div class="form-group">
                             <label>Distancia (KM)</label>
                             <input type="number" id="distancia" class="form-control" min="0" step="0.1" required>
@@ -63,14 +80,13 @@
                                 <option value="Pagado">Pagado</option>
                             </select>
                         </div>
-                        <button type="submit" class="btn-primary">Despachar</button>
+                        <button type="submit" class="btn-primary">Despachar Motorista</button>
                     </form>
                 </div>
             </div>
 
-            <!-- Listas de Visualización de Tablas Separadas -->
+            <!-- Visualización de Tablas de Trabajo -->
             <div class="table-container">
-                <!-- Tabla 1: Órdenes de Pedidos Pendientes (Procesamiento Manual) -->
                 <div class="table-card" style="border-left: 4px solid var(--warning-amber);">
                     <h3>⏳ Pedidos Pendientes (Procesamiento Manual)</h3>
                     <table class="data-table">
@@ -81,7 +97,7 @@
                                 <th>Mensajero</th>
                                 <th>Detalle</th>
                                 <th>Precio</th>
-                                <th>Estatus (Cambiar después)</th>
+                                <th>Estatus</th>
                                 <th>Acción</th>
                             </tr>
                         </thead>
@@ -89,7 +105,6 @@
                     </table>
                 </div>
 
-                <!-- Tabla 2: Órdenes Listas / Entregadas en esta Semana -->
                 <div class="table-card" style="border-left: 4px solid var(--success-green); margin-top:2rem;">
                     <h3>✅ Órdenes Entregadas (Listas para el próximo Corte)</h3>
                     <table class="data-table">
@@ -111,7 +126,6 @@
         </div>
     </main>
 
-    <!-- Modal de Contraseña Maestra para el Corte -->
     <div id="corteModal" class="modal">
         <div class="modal-content">
             <h3>Confirmar Corte Semanal</h3>

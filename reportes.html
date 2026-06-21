@@ -6,7 +6,12 @@
 </head>
 <body>
     <header class="main-header">
-        <div class="logo"><a href="index.html"><h1>Te lo llevo 🏍️</h1></a></div>
+        <div class="logo">
+            <a href="index.html">
+                <img src="logo.png" alt="Te lo llevo Logo" class="logo-img">
+                <span class="logo-text">Te lo llevo</span>
+            </a>
+        </div>
         <nav class="nav-menu">
             <a href="index.html">Panel Principal</a>
             <a href="reportes.html" class="active">Reportes Históricos</a>
@@ -20,8 +25,12 @@
         </div>
     </main>
 
-    <!-- Área de impresión oculta de 55mm -->
     <div id="ticketPrintArea" class="ticket-print-hidden"></div>
+
+    <script type="module">
+        import { auth, onAuthStateChanged } from "./firebase-config.js";
+        onAuthStateChanged(auth, (user) => { if (!user) window.location.href = "login.html"; });
+    </script>
 
     <script type="module">
         import { db, collection, getDocs } from "./firebase-config.js";
@@ -38,19 +47,16 @@
                 const block = document.createElement('div');
                 block.className = 'report-block';
 
-                // Agrupaciones analíticas para la sección de empleados y clientes del corte
                 const empData = {};
                 const cliData = {};
 
                 corte.pedidos.forEach(p => {
-                    // Procesar Empleados
                     if(!empData[p.id_empleado]) {
                         empData[p.id_empleado] = { nombre: p.nombre_empleado || p.id_empleado, viajes: 0, bruto: 0 };
                     }
                     empData[p.id_empleado].viajes += 1;
                     empData[p.id_empleado].bruto += parseFloat(p.precio || 0);
 
-                    // Procesar Clientes
                     if(!cliData[p.id_cliente]) {
                         cliData[p.id_cliente] = { nombre: p.nombre_cliente || p.id_cliente, viajes: 0, acumulado: 0 };
                     }
@@ -58,29 +64,52 @@
                     cliData[p.id_cliente].acumulado += parseFloat(p.precio || 0);
                 });
 
+                // NUEVO: Se añade de forma explícita la fecha y hora de procesamiento en el encabezado del reporte
+                const estampadoTiempo = corte.fecha_corte || "Fecha no especificada";
+
                 let htmlContent = `
-                    <div class="report-header-title">📋 Nómina - Período: Semanal del ${corte.periodo}</div>
+                    <div class="report-header-title">
+                        📋 Nómina - Período: Semanal del ${corte.periodo}
+                        <br><span style="font-size:0.85rem; font-weight:normal; opacity:0.85;">Procesado el: ${estampadoTiempo}</span>
+                    </div>
                     
                     <h4>🛵 Resumen de Liquidación a Mensajeros</h4>
                     <table class="data-table" style="margin-bottom:1.5rem;">
                         <thead>
-                            <tr><th>Mensajero</th><th>Viajes</th><th>Sueldo Bruto</th><th>Sueldo Neto</th><th>Factura</th></tr>
+                            <tr>
+                                <th>Mensajero</th>
+                                <th>Viajes</th>
+                                <th>Sueldo Bruto</th>
+                                <th>Descuento (RD$50xV)</th>
+                                <th>Sueldo Neto</th>
+                                <th>Factura</th>
+                            </tr>
                         </thead>
                         <tbody>
                 `;
 
                 for(let k in empData) {
                     const e = empData[k];
-                    const neto = e.bruto * 0.80;
+                    const descuento = e.viajes * 50;
+                    const neto = e.bruto - descuento;
                     
-                    // JSON stringified safe structure for printing ticket
-                    const tktData = { periodo: corte.periodo, id: k, nombre: e.nombre, viajes: e.viajes, bruto: e.bruto.toFixed(2), neto: neto.toFixed(2) };
+                    const tktData = { 
+                        periodo: corte.periodo, 
+                        id: k, 
+                        nombre: e.nombre, 
+                        viajes: e.viajes, 
+                        bruto: e.bruto.toFixed(2), 
+                        descuento: descuento.toFixed(2), 
+                        neto: neto.toFixed(2),
+                        procesado: estampadoTiempo // Acoplado para el ticket físico
+                    };
 
                     htmlContent += `
                         <tr>
                             <td><strong>${e.nombre}</strong></td>
-                            <td>${e.viajes} de entrega</td>
+                            <td>${e.viajes} envíos</td>
                             <td>RD$ ${e.bruto.toFixed(2)}</td>
+                            <td style="color:var(--accent-red);">- RD$ ${descuento.toFixed(2)}</td>
                             <td style="color:var(--success-green); font-weight:bold;">RD$ ${neto.toFixed(2)}</td>
                             <td><button class="action-btn btn-print" data-ticket='${JSON.stringify(tktData)}'>🖨️ Ticket 55mm</button></td>
                         </tr>
@@ -99,7 +128,6 @@
                 container.appendChild(block);
             });
 
-            // Registrar disparadores de impresión térmica
             document.querySelectorAll('.btn-print').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const t = JSON.parse(e.target.getAttribute('data-ticket'));
@@ -121,7 +149,9 @@ VIAJES REALIZADOS: ${t.viajes}
 ------------------------
 SUELDO BRUTO:
 RD$ ${t.bruto}
-RETE. EMPRESA: 20%
+
+DESCUENTO OPERATIVO:
+-RD$ ${t.descuento} (RD$50xV)
 ------------------------
 SUELDO NETO A PAGAR:
 RD$ ${t.neto}
@@ -130,8 +160,9 @@ Firma Conforme:
 
 
 ________________________
-Fecha Impresión: 2026
-
+PROCESADO:
+${t.procesado}
+------------------------
 ¡Eficiencia sobre ruedas!
 ------------------------
                     `;

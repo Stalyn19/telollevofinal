@@ -4,11 +4,13 @@ const form = document.getElementById('pedidoForm');
 const selectCliente = document.getElementById('idCliente');
 const selectEmpleado = document.getElementById('idEmpleado');
 const selectPedido = document.getElementById('pedidoSelect');
-const customGroup = document.getElementById('customGroup');
-const inputPedidoCustom = document.getElementById('pedidoCustom');
 const inputDistancia = document.getElementById('distancia');
 const inputPrecio = document.getElementById('precio');
 const selectPago = document.getElementById('pago');
+
+// ACTUALIZACIÓN: Captura de los nuevos elementos del DOM para paquetería condicional
+const paquetesGroup = document.getElementById('paquetesGroup');
+const inputCantPaquetes = document.getElementById('cantPaquetes');
 
 const tablaPendientes = document.getElementById('tablaPendientes');
 const tablaEntregados = document.getElementById('tablaEntregados');
@@ -18,69 +20,80 @@ const cortePassword = document.getElementById('cortePassword');
 const btnEjecutarCorte = document.getElementById('btnEjecutarCorte');
 const btnCancelarCorte = document.getElementById('btnCancelarCorte');
 
-// ==========================================================================
-// NUEVA REGLA DE EVALUACIÓN DE PRECIOS POR DISTANCIA (MOTO)
-// ==========================================================================
+// Matriz tarifaria base (Se mantiene intacta según rangos solicitados)
 function calcularPrecio(dist) {
     if (dist < 0) return 0;
-    if (dist <= 5) return 200;   // 0 a 5 KM -> RD$ 200.00
-    if (dist <= 8) return 250;   // 6 a 8 KM -> RD$ 250.00
-    if (dist <= 11) return 300;  // 9 a 11 KM -> RD$ 300.00
-    if (dist <= 16) return 350;  // 12 a 16 KM -> RD$ 350.00
-    if (dist <= 19) return 400;  // 17 a 19 KM -> RD$ 400.00
-    if (dist <= 29) return 500;  // 20 a 28 KM (Incluye 29 para continuidad) -> RD$ 500.00
-    if (dist <= 35) return 700;  // 30 a 35 KM -> RD$ 700.00
-    return -1; // Si excede los 35 KM -> Fuera de cobertura
+    if (dist <= 5) return 200;
+    if (dist <= 8) return 250;
+    if (dist <= 11) return 300;
+    if (dist <= 16) return 350;
+    if (dist <= 19) return 400;
+    if (dist <= 29) return 500;
+    if (dist <= 35) return 700;
+    return -1;
 }
 
-// Escuchar cambios en la distancia para calcular el precio dinámicamente en pantalla
-inputDistancia.addEventListener('input', () => {
+// ACTUALIZACIÓN: Función unificada para calcular precio base + el recargo de paquetes extras
+function actualizarPrecioEnPantalla() {
     const d = parseFloat(inputDistancia.value);
     if(!isNaN(d)) {
-        const p = calcularPrecio(d);
-        if (p === -1) { 
+        const precioBase = calcularPrecio(d);
+        if (precioBase === -1) { 
             inputPrecio.value = "ÁREA SIN COBERTURA"; 
             inputPrecio.style.color = "red";
             inputPrecio.style.fontWeight = "bold";
         } else { 
-            inputPrecio.value = p.toFixed(2); 
+            // Evaluar si aplica el recargo de RD$ 170.00 por volumen de bultos
+            let cargoAdicional = 0;
+            if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
+                const cantidad = parseInt(inputCantPaquetes.value) || 1;
+                cargoAdicional = cantidad * 170;
+            }
+            
+            const precioFinal = precioBase + cargoAdicional;
+            inputPrecio.value = precioFinal.toFixed(2); 
             inputPrecio.style.color = "inherit";
             inputPrecio.style.fontWeight = "normal";
         }
     } else {
         inputPrecio.value = "0.00";
     }
-});
+}
 
+// ACTUALIZACIÓN: Escuchar cambios en los selectores y cajas numéricas para recalcular montos
+inputDistancia.addEventListener('input', actualizarPrecioEnPantalla);
+inputCantPaquetes.addEventListener('input', actualizarPrecioEnPantalla);
+
+// ACTUALIZACIÓN: Evento para ocultar o mostrar la cantidad de bultos según el transportista elegido
 selectPedido.addEventListener('change', () => {
-    customGroup.style.display = selectPedido.value === "OTRO" ? "block" : "none";
+    if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
+        paquetesGroup.style.display = "block";
+        inputCantPaquetes.setAttribute('required', 'true');
+    } else {
+        paquetesGroup.style.display = "none";
+        inputCantPaquetes.removeAttribute('required');
+        inputCantPaquetes.value = 1; // Reseteo estándar de seguridad
+    }
+    actualizarPrecioEnPantalla();
 });
 
 async function cargarSelectores() {
     const snapC = await getDocs(query(collection(db, "clientes"), where("activo", "==", true)));
     selectCliente.innerHTML = '';
-    snapC.forEach(d => {
-        selectCliente.innerHTML += `<option value="${d.data().id_auto}">${d.data().nombre}</option>`;
-    });
+    snapC.forEach(d => { selectCliente.innerHTML += `<option value="${d.data().id_auto}">${d.data().nombre}</option>`; });
 
     const snapE = await getDocs(query(collection(db, "empleados"), where("activo", "==", true)));
     selectEmpleado.innerHTML = '';
-    snapE.forEach(d => {
-        selectEmpleado.innerHTML += `<option value="${d.data().id_auto}">${d.data().nombre} ${d.data().apellido}</option>`;
-    });
+    snapE.forEach(d => { selectEmpleado.innerHTML += `<option value="${d.data().id_auto}">${d.data().nombre} ${d.data().apellido}</option>`; });
 }
 
 async function cargarTablas() {
-    tablaPendientes.innerHTML = '';
-    tablaEntregados.innerHTML = '';
-    
-    const q = query(collection(db, "pedidos"), where("valido", "==", true));
-    const snap = await getDocs(q);
+    tablaPendientes.innerHTML = ''; tablaEntregados.innerHTML = '';
+    const snap = await getDocs(query(collection(db, "pedidos"), where("valido", "==", true)));
     
     snap.forEach(docSnap => {
         const d = docSnap.data();
         const tr = document.createElement('tr');
-        
         const clienteMuestra = d.nombre_cliente || d.id_cliente;
         const empleadoMuestra = d.nombre_empleado || d.id_empleado;
 
@@ -116,8 +129,7 @@ async function cargarTablas() {
 
     document.querySelectorAll('.change-status').forEach(select => {
         select.addEventListener('change', async (e) => {
-            const id = e.target.getAttribute('data-id');
-            await updateDoc(doc(db, "pedidos", id), { estatus: e.target.value });
+            await updateDoc(doc(db, "pedidos", e.target.getAttribute('data-id')), { estatus: e.target.value });
             cargarTablas();
         });
     });
@@ -135,15 +147,27 @@ async function cargarTablas() {
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const dist = parseFloat(inputDistancia.value);
-    const p = calcularPrecio(dist);
-    
-    if(p === -1) { 
-        alert("🚨 Error de Cobertura: El pedido excede el límite permitido o se encuentra en un área sin cobertura. No se puede guardar."); 
-        return; 
+    const precioBase = calcularPrecio(dist);
+    if(precioBase === -1) { alert("Área sin cobertura."); return; }
+
+    // ACTUALIZACIÓN: Modificación del texto descriptivo final de la carga para reflejar bultos
+    let detalleFinal = selectPedido.value;
+    let costoAdicional = 0;
+    if(selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
+        const cantidad = parseInt(inputCantPaquetes.value) || 1;
+        costoAdicional = cantidad * 170;
+        detalleFinal = `${selectPedido.value} (${cantidad} Paq.)`;
     }
 
-    let det = selectPedido.value;
-    if(det === "OTRO") det = inputPedidoCustom.value.trim();
+    const precioTotalFinal = precioBase + costoAdicional;
+
+    // ACTUALIZACIÓN: Captura del string con el formato exacto de fecha y hora local de operación
+    const opcionesFecha = { year: 'numeric', month: '2-digit', day: '2-digit' };
+    const opcionesHora = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+    const ahora = new Date();
+    const fechaTexto = ahora.toLocaleDateString('es-DO', opcionesFecha);
+    const horaTexto = ahora.toLocaleTimeString('es-DO', opcionesHora);
+    const timestampCompleto = `${fechaTexto} ${horaTexto}`; // Formato: DD/MM/AAAA HH:MM:SS AM/PM
 
     await addDoc(collection(db, "pedidos"), {
         id_pedido: 'PED-' + Math.floor(100000 + Math.random() * 900000),
@@ -151,66 +175,50 @@ form.addEventListener('submit', async (e) => {
         nombre_cliente: selectCliente.options[selectCliente.selectedIndex].text,
         id_empleado: selectEmpleado.value,
         nombre_empleado: selectEmpleado.options[selectEmpleado.selectedIndex].text,
-        detalle_pedido: det,
+        detalle_pedido: detalleFinal,
         distancia: dist,
-        precio: p,
+        precio: precioTotalFinal,
         estatus: "Pendiente",
         pago: selectPago.value,
         valido: true,
-        fecha: new Date().toISOString()
+        fecha: ahora.toISOString(),
+        // ACTUALIZACIÓN: Guardamos la propiedad de tiempo explícita requerida para el reporte
+        fecha_hora_pedido: timestampCompleto 
     });
 
-    form.reset(); customGroup.style.display="none"; cargarTablas();
+    form.reset(); paquetesGroup.style.display="none"; cargarTablas();
 });
 
-btnCorteNomina.addEventListener('click', () => {
-    corteModal.style.display = 'flex';
-    cortePassword.value = '';
-});
+btnCorteNomina.addEventListener('click', () => { corteModal.style.display = 'flex'; cortePassword.value = ''; });
 btnCancelarCorte.addEventListener('click', () => corteModal.style.display = 'none');
 
 btnEjecutarCorte.addEventListener('click', async () => {
-    if(cortePassword.value !== "te_lo_llevo_2026") {
-        alert("Contraseña Maestra Inválida.");
-        return;
-    }
+    if(cortePassword.value !== "te_lo_llevo_2026") { alert("Contraseña Maestra Inválida."); return; }
 
-    const snap = await getDocs(query(collection(db, "pedidos"), where("valido", "==", true)));
+    const snap = await getDocs(query(collection(db, "pedidos"), where("valido", "==", true), where("estatus", "==", "Entregado")));
     const entregados = [];
     
-    snap.forEach(d => {
-        if(d.data().estatus === "Entregado") {
-            entregados.push({ id_firestore: d.id, ...d.data() });
-        }
-    });
-
-    if(entregados.length === 0) {
-        alert("No hay pedidos con estatus 'Entregado' para archivar en este corte.");
-        corteModal.style.display = 'none';
-        return;
-    }
+    snap.forEach(d => { entregados.push({ id_firestore: d.id, ...d.data() }); });
+    if(entregados.length === 0) { alert("No hay pedidos 'Entregado' para archivar."); corteModal.style.display = 'none'; return; }
 
     entregados.sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
     const primerPedido = entregados[0].fecha.substring(0, 10);
     const ultimoPedido = entregados[entregados.length - 1].fecha.substring(0, 10);
     const periodoStr = `${primerPedido} al ${ultimoPedido}`;
 
+    // ACTUALIZACIÓN: Registro del cierre con marca de tiempo precisa del procesamiento de corte
+    const timestampCorte = new Date().toLocaleString('es-DO', { hour12: true });
+
     await addDoc(collection(db, "cortes_semanales"), {
         periodo: periodoStr,
         pedidos: entregados,
-        fecha_corte: new Date().toISOString()
+        fecha_corte: timestampCorte // Guarda fecha y hora del procesamiento de nómina
     });
 
-    for(let p of entregados) {
-        await updateDoc(doc(db, "pedidos", p.id_firestore), { valido: false, archivado: true });
-    }
+    for(let p of entregados) { await updateDoc(doc(db, "pedidos", p.id_firestore), { valido: false, archivado: true }); }
 
-    alert(`¡Corte procesado con éxito para el período: ${periodoStr}!`);
-    corteModal.style.display = 'none';
-    cargarTablas();
+    alert(`¡Corte procesado con éxito!`);
+    corteModal.style.display = 'none'; cargarTablas();
 });
 
-document.addEventListener('DOMContentLoaded', () => {
-    cargarSelectores();
-    cargarTablas();
-});
+document.addEventListener('DOMContentLoaded', () => { cargarSelectores(); cargarTablas(); });
