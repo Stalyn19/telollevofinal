@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8"><title>Te lo llevo V2 - Nómina en Tiempo Real</title>
+    <meta charset="UTF-8">
+    <title>Te lo llevo V2 - Nómina en Tiempo Real</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -15,18 +16,18 @@
     </header>
     <main class="dashboard-container">
         <h2 class="page-title">Acumulado de Nómina Semanal en Tiempo Real</h2>
-        <p style="color:var(--text-muted); margin-bottom:1.5rem;">Cálculos automáticos basados en entregas efectivas de la flota.</p>
+        <p style="color:var(--text-muted); margin-bottom:1.5rem;">Cálculo operativo: Descuento fijo de RD$ 50.00 por cada viaje completado.</p>
         
         <div class="table-card">
             <table class="data-table">
                 <thead>
                     <tr>
                         <th>Código Empleado</th>
-                        <th>Nombre</th>
-                        <th>Apellido</th>
-                        <th>Viajes Completados</th>
+                        <th>Nombre Completo</th>
+                        <th>Viajes Realizados</th>
                         <th>Sueldo Bruto (RD$)</th>
-                        <th>Sueldo Neto (80% RD$)</th>
+                        <th>Descuento (RD$ 50 x Viaje)</th>
+                        <th>Sueldo Neto a Pagar (RD$)</th>
                     </tr>
                 </thead>
                 <tbody id="nominaBody">
@@ -35,6 +36,12 @@
             </table>
         </div>
     </main>
+
+    <script type="module">
+        import { auth, onAuthStateChanged } from "./firebase-config.js";
+        onAuthStateChanged(auth, (user) => { if (!user) window.location.href = "login.html"; });
+    </script>
+
     <script type="module">
         import { db, collection, getDocs, query, where } from "./firebase-config.js";
 
@@ -61,17 +68,24 @@
             
             for(let key in mapaEmp) {
                 const emp = mapaEmp[key];
-                const neto = emp.bruto * 0.80; // Sueldo Neto de mensajería (80% para el motorista)
+                
+                // APLICACIÓN DE TU NUEVA REGLA MATEMÁTICA
+                const descuentoTotal = emp.viajes * 50; 
+                const sueldoNeto = emp.bruto - descuentoTotal;
+
                 tbody.innerHTML += `
                     <tr>
                         <td><strong>${key}</strong></td>
-                        <td>${emp.nombre}</td>
-                        <td>${emp.apellido}</td>
+                        <td>${emp.nombre} ${emp.apellido}</td>
                         <td><span class="badge badge-entregado">${emp.viajes} viajes</span></td>
-                        <td><strong>RD$ ${emp.bruto.toFixed(2)}</strong></td>
-                        <td style="color:var(--success-green); font-weight:bold;">RD$ ${neto.toFixed(2)}</td>
+                        <td>RD$ ${emp.bruto.toFixed(2)}</td>
+                        <td style="color:var(--accent-red); font-weight:600;">- RD$ ${descuentoTotal.toFixed(2)}</td>
+                        <td style="color:var(--success-green); font-weight:bold; font-size:1.05rem;">RD$ ${sueldoNeto.toFixed(2)}</td>
                     </tr>
                 `;
+            }
+            if(Object.keys(mapaEmp).length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No hay empleados registrados activos.</td></tr>';
             }
         }
         document.addEventListener('DOMContentLoaded', calcularNominaRealTime);
