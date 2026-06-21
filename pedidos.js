@@ -21,11 +21,12 @@ const btnCancelarCorte = document.getElementById('btnCancelarCorte');
 function calcularPrecio(dist) {
     if (dist < 0) return 0;
     if (dist <= 5) return 200;
-    if (dist <= 9) return 250;
-    if (dist <= 13) return 300;
-    if (dist <= 17) return 350;
-    if (dist <= 22) return 400;
-    if (dist <= 35) return 500;
+    if (dist <= 8) return 250;
+    if (dist <= 11) return 300;
+    if (dist <= 16) return 350;
+    if (dist <= 19) return 400;
+    if (dist <= 28) return 500;
+    if (dist <= 35) return 700;
     return -1;
 }
 
