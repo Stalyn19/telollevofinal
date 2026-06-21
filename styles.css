@@ -327,3 +327,44 @@ footer {
         margin: 0;
     }
 }
+
+/* ==========================================================================
+   ENCABEZADO (HEADER) - ACTUALIZADO CON LOGO COMPLETO
+   ========================================================================== */
+.main-header {
+    background: var(--blue-gradient);
+    color: var(--text-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem 2.5rem; /* Se redujo ligeramente el padding vertical para estilizar */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.logo a {
+    display: flex;
+    align-items: center;
+    gap: 12px; /* Espacio perfecto entre el logo circular y el texto */
+    text-decoration: none;
+}
+
+.logo-img {
+    height: 48px; /* Dimensión ideal para que resalte sin agrandar demasiado el header */
+    width: 48px;
+    object-fit: contain;
+    border-radius: 50%; /* Al ser un diseño circular, asegura un calce perfecto */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); /* Sombra sutil para dar volumen */
+    transition: transform 0.3s ease;
+}
+
+.logo-text {
+    color: var(--text-light);
+    font-size: 1.6rem;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+/* Efecto interactivo: Cuando pasas el mouse por el header, el logo aumenta su escala */
+.main-header:hover .logo-img {
+    transform: scale(1.08) rotate(-3deg); /* Simula el arranque o inclinación de la moto */
+}
