@@ -148,10 +148,7 @@
 
     <footer><p>Te lo llevo © 2026 - Eficiencia sobre ruedas</p></footer>
 
-    <script type="module">
-        import { auth, onAuthStateChanged } from "./firebase-config.js";
-        onAuthStateChanged(auth, (user) => { if (!user) window.location.href = "login.html"; });
-    </script>
+
     
     <script type="module" src="pedidos.js"></script>
 </body>
