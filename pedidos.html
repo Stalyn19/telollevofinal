@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Te lo llevo V2 - Despacho de Pedidos</title>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -14,6 +15,7 @@
             </a>
         </div>
         <nav class="nav-menu">
+            <a href="index.html">Panel</a>
             <a href="pedidos.html" class="active">Pedidos</a>
             <a href="clientes.html">Clientes</a>
             <a href="empleados.html">Empleados</a>
@@ -21,28 +23,30 @@
     </header>
 
     <main class="dashboard-container">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h2 class="page-title">Módulo Operativo de Despacho</h2>
-            <button id="btnCorteNomina" class="btn-corte">✂️ Realizar Corte de Nómina Semanal</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
+            <h2 class="page-title" style="margin-bottom: 0;">Módulo Operativo de Despacho</h2>
+            <button id="btnCorteNomina" class="btn-corte" style="margin-bottom: 0;">✂️ Realizar Corte de Nómina Semanal</button>
         </div>
         
         <div class="content-layout">
-            <!-- Formulario de Pedidos v2 -->
             <div class="form-container">
                 <div class="form-card">
                     <h3>Registrar Nueva Orden</h3>
                     <form id="pedidoForm">
                         <div class="form-group">
                             <label for="idCliente">Cliente</label>
-                            <select id="idCliente" class="form-control" required></select>
+                            <select id="idCliente" class="form-control" required>
+                                <option value="">-- Seleccione Cliente --</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label for="idEmpleado">Mensajero en Moto</label>
-                            <select id="idEmpleado" class="form-control" required></select>
+                            <select id="idEmpleado" class="form-control" required>
+                                <option value="">-- Seleccione Mensajero --</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label for="pedidoSelect">Detalle de Envío</label>
-                            <!-- Listado oficial de mercancías actualizado -->
                             <select id="pedidoSelect" class="form-control" required>
                                 <option value="">-- Seleccione Tipo de Envío --</option>
                                 <option value="Vimen Paq">Vimen Paq</option>
@@ -59,22 +63,21 @@
                             </select>
                         </div>
 
-                        <!-- NUEVO: Campo Dinámico Condicional para Cantidad de Paquetes -->
-                       <div class="form-group" id="paquetesGroup" style="display:none;">
-    <label for="montoAdicional">Monto Adicional por Paquetería (RD$)</label>
-    <input type="number" id="montoAdicional" class="form-control" min="0" value="0" placeholder="Ej. 170 o 340">
-</div>
+                        <div class="form-group" id="paquetesGroup" style="display:none;">
+                            <label for="montoAdicional">Monto Adicional por Paquetería (RD$)</label>
+                            <input type="number" id="montoAdicional" class="form-control" min="0" value="0" placeholder="Ej. 170 o 340">
+                        </div>
 
                         <div class="form-group">
-                            <label>Distancia (KM)</label>
-                            <input type="number" id="distancia" class="form-control" min="0" step="0.1" required>
+                            <label for="distancia">Distancia (KM)</label>
+                            <input type="number" id="distancia" class="form-control" min="0" step="0.1" required placeholder="Ej. 8.5">
                         </div>
                         <div class="form-group">
-                            <label>Precio Calculado (RD$)</label>
+                            <label for="precio">Precio Calculado (RD$)</label>
                             <input type="text" id="precio" class="form-control" readonly value="0.00">
                         </div>
                         <div class="form-group">
-                            <label>Estado del Pago</label>
+                            <label for="pago">Estado del Pago</label>
                             <select id="pago" class="form-control">
                                 <option value="Pendiente">Pendiente</option>
                                 <option value="Pagado">Pagado</option>
@@ -85,10 +88,9 @@
                 </div>
             </div>
 
-            <!-- Visualización de Tablas de Trabajo -->
             <div class="table-container">
                 <div class="table-card" style="border-left: 4px solid var(--warning-amber);">
-                    <h3>⏳ Pedidos Pendientes (Procesamiento Manual)</h3>
+                    <h3>⏳ Pedidos Pendientes (En Camino)</h3>
                     <table class="data-table">
                         <thead>
                             <tr>
@@ -106,7 +108,7 @@
                 </div>
 
                 <div class="table-card" style="border-left: 4px solid var(--success-green); margin-top:2rem;">
-                    <h3>✅ Órdenes Entregadas (Listas para el próximo Corte)</h3>
+                    <h3>✅ Órdenes Entregadas (Listas para Corte)</h3>
                     <table class="data-table">
                         <thead>
                             <tr>
@@ -129,14 +131,20 @@
     <div id="corteModal" class="modal">
         <div class="modal-content">
             <h3>Confirmar Corte Semanal</h3>
-            <p>Se guardará el historial con el período correspondiente y se limpiará la nómina actual.</p>
-            <input type="password" id="cortePassword" class="form-control" placeholder="Contraseña Maestra" style="margin: 1rem 0;">
+            <p style="font-size: 0.95rem; margin-top: 0.5rem; color: var(--text-muted);">Se archivarán los pedidos entregados y se calculará la nómina neta con el descuento de RD$ 50 por viaje.</p>
+            <input type="password" id="cortePassword" class="form-control" placeholder="Contraseña Maestra" style="margin: 1.2rem 0;">
             <button id="btnEjecutarCorte" class="btn-primary" style="background:var(--accent-red);">Proceder con el Corte</button>
             <button id="btnCancelarCorte" class="btn-primary" style="background:#64748b; margin-top:0.5rem;">Cancelar</button>
         </div>
     </div>
 
-    <footer><p>Te lo llevo Derechos Reservados 2026</p></footer>
+    <footer><p>Te lo llevo © 2026 - Eficiencia sobre ruedas</p></footer>
+
+    <script type="module">
+        import { auth, onAuthStateChanged } from "./firebase-config.js";
+        onAuthStateChanged(auth, (user) => { if (!user) window.location.href = "login.html"; });
+    </script>
+    
     <script type="module" src="pedidos.js"></script>
 </body>
 </html>

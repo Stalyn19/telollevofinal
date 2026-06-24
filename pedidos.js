@@ -1,5 +1,6 @@
 import { db, collection, addDoc, getDocs, updateDoc, doc, query, where } from "./firebase-config.js";
 
+// Captura de elementos del DOM
 const form = document.getElementById('pedidoForm');
 const selectCliente = document.getElementById('idCliente');
 const selectEmpleado = document.getElementById('idEmpleado');
@@ -8,7 +9,7 @@ const inputDistancia = document.getElementById('distancia');
 const inputPrecio = document.getElementById('precio');
 const selectPago = document.getElementById('pago');
 
-// CAMBIO OPERATIVO: Capturamos el nuevo input de monto manual
+// Componentes del campo manual (Sincronizados sin rastro del error anterior)
 const paquetesGroup = document.getElementById('paquetesGroup');
 const inputMontoAdicional = document.getElementById('montoAdicional');
 
@@ -20,7 +21,7 @@ const cortePassword = document.getElementById('cortePassword');
 const btnEjecutarCorte = document.getElementById('btnEjecutarCorte');
 const btnCancelarCorte = document.getElementById('btnCancelarCorte');
 
-// Matriz tarifaria base por kilómetros
+// Matriz tarifaria oficial por kilometraje
 function calcularPrecio(dist) {
     if (dist < 0) return 0;
     if (dist <= 5) return 200;
@@ -33,7 +34,7 @@ function calcularPrecio(dist) {
     return -1;
 }
 
-// CAMBIO OPERATIVO: Lógica para sumar el monto ingresado manualmente por el usuario
+// Función unificada para calcular la base de la ruta más el extra digitado a mano
 function actualizarPrecioEnPantalla() {
     const d = parseFloat(inputDistancia.value);
     if(!isNaN(d)) {
@@ -44,7 +45,7 @@ function actualizarPrecioEnPantalla() {
             inputPrecio.style.fontWeight = "bold";
         } else { 
             let cargoAdicional = 0;
-            // Si es paquetería de agencia, lee directo el valor numérico digitado en la caja
+            // Captura el monto manual únicamente si es paquetería express de agencia
             if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
                 cargoAdicional = parseFloat(inputMontoAdicional.value) || 0;
             }
@@ -59,22 +60,26 @@ function actualizarPrecioEnPantalla() {
     }
 }
 
-inputDistancia.addEventListener('input', actualizarPrecioEnPantalla);
-// Escucha cuando el operador escribe el monto manual para actualizar el total al instante
-inputMontoAdicional.addEventListener('input', actualizarPrecioEnPantalla);
+// Escuchas reactivas en tiempo real para el cálculo en pantalla
+if(inputDistancia) inputDistancia.addEventListener('input', actualizarPrecioEnPantalla);
+if(inputMontoAdicional) inputMontoAdicional.addEventListener('input', actualizarPrecioEnPantalla);
 
-selectPedido.addEventListener('change', () => {
-    if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
-        paquetesGroup.style.display = "block";
-        inputMontoAdicional.setAttribute('required', 'true');
-    } else {
-        paquetesGroup.style.display = "none";
-        inputMontoAdicional.removeAttribute('required');
-        inputMontoAdicional.value = 0; // Reseteo de seguridad
-    }
-    actualizarPrecioEnPantalla();
-});
+// Despliegue condicional del panel de dinero adicional
+if(selectPedido) {
+    selectPedido.addEventListener('change', () => {
+        if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
+            paquetesGroup.style.display = "block";
+            inputMontoAdicional.setAttribute('required', 'true');
+        } else {
+            paquetesGroup.style.display = "none";
+            inputMontoAdicional.removeAttribute('required');
+            inputMontoAdicional.value = 0; // Limpieza de seguridad
+        }
+        actualizarPrecioEnPantalla();
+    });
+}
 
+// Carga e indexación de listas desplegables desde Firebase
 async function cargarSelectores() {
     try {
         const snapC = await getDocs(query(collection(db, "clientes"), where("activo", "==", true)));
@@ -84,9 +89,10 @@ async function cargarSelectores() {
         const snapE = await getDocs(query(collection(db, "empleados"), where("activo", "==", true)));
         selectEmpleado.innerHTML = '<option value="">-- Seleccione Mensajero --</option>';
         snapE.forEach(d => { selectEmpleado.innerHTML += `<option value="${d.data().id_auto}">${d.data().nombre} ${d.data().apellido}</option>`; });
-    } catch (error) { console.error(error); }
+    } catch (error) { console.error("Error cargando listas: ", error); }
 }
 
+// Renderizado de las colas de trabajo activas
 async function cargarTablas() {
     tablaPendientes.innerHTML = ''; tablaEntregados.innerHTML = '';
     try {
@@ -128,6 +134,7 @@ async function cargarTablas() {
             }
         });
 
+        // Eventos para conmutación de estados operativos
         document.querySelectorAll('.change-status').forEach(select => {
             select.addEventListener('change', async (e) => {
                 await updateDoc(doc(db, "pedidos", e.target.getAttribute('data-id')), { estatus: e.target.value });
@@ -143,21 +150,21 @@ async function cargarTablas() {
                 }
             });
         });
-    } catch (error) { console.error(error); }
+    } catch (error) { console.error("Error al renderizar paneles: ", error); }
 }
 
+// Guardado Seguro de Pedidos con estampado cronológico local dominicano
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (selectCliente.selectedIndex <= 0 || selectEmpleado.selectedIndex <= 0) {
-        alert("⚠️ Por favor, seleccione un Cliente y un Mensajero válidos.");
+        alert("⚠️ Por favor, seleccione un Cliente y un Mensajero válidos de la lista.");
         return;
     }
 
     const dist = parseFloat(inputDistancia.value);
     const precioBase = calcularPrecio(dist);
-    if(precioBase === -1) { alert("🚨 Área sin cobertura geográfica."); return; }
+    if(precioBase === -1) { alert("🚨 Operación Bloqueada: Destino fuera de la cobertura geográfica."); return; }
 
-    // CAMBIO OPERATIVO: Estructuramos la descripción con el dinero extra ingresado a mano
     let detalleFinal = selectPedido.value;
     let costoAdicional = 0;
     if(selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
@@ -166,6 +173,8 @@ form.addEventListener('submit', async (e) => {
     }
 
     const precioTotalFinal = precioBase + costoAdicional;
+    
+    // Generación de la estampa de tiempo local dominicana
     const ahora = new Date();
     const timestampCompleto = ahora.toLocaleDateString('es-DO', { year: 'numeric', month: '2-digit', day: '2-digit' }) + ' ' + 
                             ahora.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
@@ -190,12 +199,13 @@ form.addEventListener('submit', async (e) => {
         form.reset(); 
         paquetesGroup.style.display = "none"; 
         await cargarTablas();
-        alert("📦 ¡Pedido procesado con éxito!");
+        alert("📦 ¡Pedido procesado y registrado con éxito!");
     } catch (error) {
-        alert("🚨 Error de Firebase: " + error.message);
+        alert("🚨 Falla de Red/Permisos en Firebase: " + error.message);
     }
 });
 
+// Procesamiento de Cortes Semanales
 btnCorteNomina.addEventListener('click', () => { corteModal.style.display = 'flex'; cortePassword.value = ''; });
 btnCancelarCorte.addEventListener('click', () => corteModal.style.display = 'none');
 
@@ -205,7 +215,7 @@ btnEjecutarCorte.addEventListener('click', async () => {
         const snap = await getDocs(query(collection(db, "pedidos"), where("valido", "==", true), where("estatus", "==", "Entregado")));
         const entregados = [];
         snap.forEach(d => { entregados.push({ id_firestore: d.id, ...d.data() }); });
-        if(entregados.length === 0) { alert("No hay pedidos 'Entregado' para archivar."); corteModal.style.display = 'none'; return; }
+        if(entregados.length === 0) { alert("No existen órdenes completadas con éxito en esta semana para archivar."); corteModal.style.display = 'none'; return; }
 
         entregados.sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
         const primerPedido = entregados[0].fecha.substring(0, 10);
@@ -220,9 +230,9 @@ btnEjecutarCorte.addEventListener('click', async () => {
         });
 
         for(let p of entregados) { await updateDoc(doc(db, "pedidos", p.id_firestore), { valido: false, archivado: true }); }
-        alert(`¡Corte procesado con éxito!`);
+        alert(`¡Corte consolidado con éxito!`);
         corteModal.style.display = 'none'; await cargarTablas();
-    } catch (error) { alert("Error en el corte: " + error.message); }
+    } catch (error) { alert("Fallo durante el cierre contable: " + error.message); }
 });
 
 document.addEventListener('DOMContentLoaded', () => { cargarSelectores(); cargarTablas(); });
