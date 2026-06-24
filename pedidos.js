@@ -9,7 +9,9 @@ const inputDistancia = document.getElementById('distancia');
 const inputPrecio = document.getElementById('precio');
 const selectPago = document.getElementById('pago');
 
+// Captura de las nuevas casillas condicionales
 const paquetesGroup = document.getElementById('paquetesGroup');
+const inputCantPaquetes = document.getElementById('cantPaquetes');
 const inputMontoAdicional = document.getElementById('montoAdicional');
 
 const tablaPendientes = document.getElementById('tablaPendientes');
@@ -33,7 +35,7 @@ function calcularPrecio(dist) {
     return -1;
 }
 
-// Función unificada para calcular la base de la ruta más el extra digitado a mano
+// Lógica de cálculo sumando el dinero extra ingresado de forma manual
 function actualizarPrecioEnPantalla() {
     const d = parseFloat(inputDistancia.value);
     if(!isNaN(d)) {
@@ -44,6 +46,7 @@ function actualizarPrecioEnPantalla() {
             inputPrecio.style.fontWeight = "bold";
         } else { 
             let cargoAdicional = 0;
+            // Suma el valor numérico digitado en la caja de dinero
             if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
                 cargoAdicional = parseFloat(inputMontoAdicional.value) || 0;
             }
@@ -61,21 +64,25 @@ function actualizarPrecioEnPantalla() {
 if(inputDistancia) inputDistancia.addEventListener('input', actualizarPrecioEnPantalla);
 if(inputMontoAdicional) inputMontoAdicional.addEventListener('input', actualizarPrecioEnPantalla);
 
+// Despliegue/Ocultación del contenedor con ambas casillas operativas
 if(selectPedido) {
     selectPedido.addEventListener('change', () => {
         if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
             paquetesGroup.style.display = "block";
+            inputCantPaquetes.setAttribute('required', 'true');
             inputMontoAdicional.setAttribute('required', 'true');
         } else {
             paquetesGroup.style.display = "none";
+            inputCantPaquetes.removeAttribute('required');
             inputMontoAdicional.removeAttribute('required');
+            inputCantPaquetes.value = 1; // Reseteo de seguridad
             inputMontoAdicional.value = 0;
         }
         actualizarPrecioEnPantalla();
     });
 }
 
-// Carga e indexación de listas desplegables desde Firebase
+// Carga de selectores desde Firebase
 async function cargarSelectores() {
     try {
         const snapC = await getDocs(query(collection(db, "clientes"), where("activo", "==", true)));
@@ -88,7 +95,7 @@ async function cargarSelectores() {
     } catch (error) { console.error("Error cargando listas: ", error); }
 }
 
-// Renderizado de las colas de trabajo activas (Modificado para renderizar la columna de tiempo)
+// Renderizado dinámico de tablas de control operativo
 async function cargarTablas() {
     tablaPendientes.innerHTML = ''; tablaEntregados.innerHTML = '';
     try {
@@ -99,8 +106,6 @@ async function cargarTablas() {
             const tr = document.createElement('tr');
             const clienteMuestra = d.nombre_cliente || d.id_cliente;
             const empleadoMuestra = d.nombre_empleado || d.id_empleado;
-            
-            // Si el pedido es antiguo y no tenía la propiedad, muestra un guion por seguridad
             const tiempoMuestra = d.fecha_hora_pedido || '---';
 
             if(d.estatus === "Pendiente") {
@@ -153,7 +158,7 @@ async function cargarTablas() {
     } catch (error) { console.error("Error al renderizar paneles: ", error); }
 }
 
-// Guardado Seguro de Pedidos con estampado cronológico local dominicano
+// Guardado en Firebase con la data estructurada de ambos campos nuevos
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (selectCliente.selectedIndex <= 0 || selectEmpleado.selectedIndex <= 0) {
@@ -167,14 +172,17 @@ form.addEventListener('submit', async (e) => {
 
     let detalleFinal = selectPedido.value;
     let costoAdicional = 0;
+    let totalPaquetes = 0;
+
+    // Captura unificada de cantidad y dinero manual para el string descriptivo
     if(selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
         costoAdicional = parseFloat(inputMontoAdicional.value) || 0;
-        detalleFinal = `${selectPedido.value} (Ext: RD$ ${costoAdicional})`;
+        totalPaquetes = parseInt(inputCantPaquetes.value) || 1;
+        detalleFinal = `${selectPedido.value} (${totalPaquetes} Paq. - Ext: RD$ ${costoAdicional})`;
     }
 
     const precioTotalFinal = precioBase + costoAdicional;
     
-    // Generación de la estampa de tiempo local dominicana (Formato: DD/MM/AAAA hh:mm:ss AM/PM)
     const ahora = new Date();
     const timestampCompleto = ahora.toLocaleDateString('es-DO', { year: 'numeric', month: '2-digit', day: '2-digit' }) + ' ' + 
                             ahora.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
@@ -187,6 +195,7 @@ form.addEventListener('submit', async (e) => {
             id_empleado: selectEmpleado.value,
             nombre_empleado: selectEmpleado.options[selectEmpleado.selectedIndex].text,
             detalle_pedido: detalleFinal,
+            cantidad_paquetes: totalPaquetes, // Guardado nativo del número de bultos
             distancia: dist,
             precio: precioTotalFinal,
             estatus: "Pendiente",
