@@ -8,9 +8,9 @@ const inputDistancia = document.getElementById('distancia');
 const inputPrecio = document.getElementById('precio');
 const selectPago = document.getElementById('pago');
 
-// Elementos de la paquetería condicional
+// CAMBIO OPERATIVO: Capturamos el nuevo input de monto manual
 const paquetesGroup = document.getElementById('paquetesGroup');
-const inputCantPaquetes = document.getElementById('cantPaquetes');
+const inputMontoAdicional = document.getElementById('montoAdicional');
 
 const tablaPendientes = document.getElementById('tablaPendientes');
 const tablaEntregados = document.getElementById('tablaEntregados');
@@ -20,7 +20,7 @@ const cortePassword = document.getElementById('cortePassword');
 const btnEjecutarCorte = document.getElementById('btnEjecutarCorte');
 const btnCancelarCorte = document.getElementById('btnCancelarCorte');
 
-// Matriz tarifaria por kilómetros
+// Matriz tarifaria base por kilómetros
 function calcularPrecio(dist) {
     if (dist < 0) return 0;
     if (dist <= 5) return 200;
@@ -33,7 +33,7 @@ function calcularPrecio(dist) {
     return -1;
 }
 
-// Función interactiva para calcular precios + bultos adicionales
+// CAMBIO OPERATIVO: Lógica para sumar el monto ingresado manualmente por el usuario
 function actualizarPrecioEnPantalla() {
     const d = parseFloat(inputDistancia.value);
     if(!isNaN(d)) {
@@ -44,10 +44,11 @@ function actualizarPrecioEnPantalla() {
             inputPrecio.style.fontWeight = "bold";
         } else { 
             let cargoAdicional = 0;
+            // Si es paquetería de agencia, lee directo el valor numérico digitado en la caja
             if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
-                const cantidad = parseInt(inputCantPaquetes.value) || 1;
-                cargoAdicional = cantidad * 170;
+                cargoAdicional = parseFloat(inputMontoAdicional.value) || 0;
             }
+            
             const precioFinal = precioBase + cargoAdicional;
             inputPrecio.value = precioFinal.toFixed(2); 
             inputPrecio.style.color = "inherit";
@@ -59,21 +60,21 @@ function actualizarPrecioEnPantalla() {
 }
 
 inputDistancia.addEventListener('input', actualizarPrecioEnPantalla);
-inputCantPaquetes.addEventListener('input', actualizarPrecioEnPantalla);
+// Escucha cuando el operador escribe el monto manual para actualizar el total al instante
+inputMontoAdicional.addEventListener('input', actualizarPrecioEnPantalla);
 
 selectPedido.addEventListener('change', () => {
     if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
         paquetesGroup.style.display = "block";
-        inputCantPaquetes.setAttribute('required', 'true');
+        inputMontoAdicional.setAttribute('required', 'true');
     } else {
         paquetesGroup.style.display = "none";
-        inputCantPaquetes.removeAttribute('required');
-        inputCantPaquetes.value = 1;
+        inputMontoAdicional.removeAttribute('required');
+        inputMontoAdicional.value = 0; // Reseteo de seguridad
     }
     actualizarPrecioEnPantalla();
 });
 
-// Cargar listas desplegables asegurando una opción neutra inicial
 async function cargarSelectores() {
     try {
         const snapC = await getDocs(query(collection(db, "clientes"), where("activo", "==", true)));
@@ -83,14 +84,11 @@ async function cargarSelectores() {
         const snapE = await getDocs(query(collection(db, "empleados"), where("activo", "==", true)));
         selectEmpleado.innerHTML = '<option value="">-- Seleccione Mensajero --</option>';
         snapE.forEach(d => { selectEmpleado.innerHTML += `<option value="${d.data().id_auto}">${d.data().nombre} ${d.data().apellido}</option>`; });
-    } catch (error) {
-        console.error("Error cargando selectores: ", error);
-    }
+    } catch (error) { console.error(error); }
 }
 
 async function cargarTablas() {
-    tablaPendientes.innerHTML = ''; 
-    tablaEntregados.innerHTML = '';
+    tablaPendientes.innerHTML = ''; tablaEntregados.innerHTML = '';
     try {
         const snap = await getDocs(query(collection(db, "pedidos"), where("valido", "==", true)));
         
@@ -145,41 +143,33 @@ async function cargarTablas() {
                 }
             });
         });
-    } catch (error) {
-        console.error("Error cargando tablas: ", error);
-    }
+    } catch (error) { console.error(error); }
 }
 
-// PROCESAMIENTO SEGURO DEL FORMULARIO
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
-    // Validaciones de seguridad para los selectores indexados
     if (selectCliente.selectedIndex <= 0 || selectEmpleado.selectedIndex <= 0) {
-        alert("⚠️ Por favor, seleccione un Cliente y un Mensajero válidos de la lista.");
+        alert("⚠️ Por favor, seleccione un Cliente y un Mensajero válidos.");
         return;
     }
 
     const dist = parseFloat(inputDistancia.value);
     const precioBase = calcularPrecio(dist);
-    if(precioBase === -1) { alert("🚨 Área sin cobertura geográfica permitida."); return; }
+    if(precioBase === -1) { alert("🚨 Área sin cobertura geográfica."); return; }
 
+    // CAMBIO OPERATIVO: Estructuramos la descripción con el dinero extra ingresado a mano
     let detalleFinal = selectPedido.value;
     let costoAdicional = 0;
     if(selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
-        const cantidad = parseInt(inputCantPaquetes.value) || 1;
-        costoAdicional = cantidad * 170;
-        detalleFinal = `${selectPedido.value} (${cantidad} Paq.)`;
+        costoAdicional = parseFloat(inputMontoAdicional.value) || 0;
+        detalleFinal = `${selectPedido.value} (Ext: RD$ ${costoAdicional})`;
     }
 
     const precioTotalFinal = precioBase + costoAdicional;
-
-    // Formateo cronológico de fecha y hora local dominicana
     const ahora = new Date();
     const timestampCompleto = ahora.toLocaleDateString('es-DO', { year: 'numeric', month: '2-digit', day: '2-digit' }) + ' ' + 
                             ahora.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
 
-    // SISTEMA DE CAPTURA DE ERRORES CRÍTICOS (TRY/CATCH)
     try {
         await addDoc(collection(db, "pedidos"), {
             id_pedido: 'PED-' + Math.floor(100000 + Math.random() * 900000),
@@ -200,11 +190,9 @@ form.addEventListener('submit', async (e) => {
         form.reset(); 
         paquetesGroup.style.display = "none"; 
         await cargarTablas();
-        alert("📦 ¡Pedido procesado y despachado con éxito en Firebase!");
+        alert("📦 ¡Pedido procesado con éxito!");
     } catch (error) {
-        // Si el login expiró o las reglas de Firestore bloquean el acceso, saltará esta alerta:
-        alert("🚨 Error de Firebase al procesar pedido: " + error.message);
-        console.error(error);
+        alert("🚨 Error de Firebase: " + error.message);
     }
 });
 
@@ -213,11 +201,9 @@ btnCancelarCorte.addEventListener('click', () => corteModal.style.display = 'non
 
 btnEjecutarCorte.addEventListener('click', async () => {
     if(cortePassword.value !== "te_lo_llevo_2026") { alert("Contraseña Maestra Inválida."); return; }
-
     try {
         const snap = await getDocs(query(collection(db, "pedidos"), where("valido", "==", true), where("estatus", "==", "Entregado")));
         const entregados = [];
-        
         snap.forEach(d => { entregados.push({ id_firestore: d.id, ...d.data() }); });
         if(entregados.length === 0) { alert("No hay pedidos 'Entregado' para archivar."); corteModal.style.display = 'none'; return; }
 
@@ -234,13 +220,9 @@ btnEjecutarCorte.addEventListener('click', async () => {
         });
 
         for(let p of entregados) { await updateDoc(doc(db, "pedidos", p.id_firestore), { valido: false, archivado: true }); }
-
         alert(`¡Corte procesado con éxito!`);
-        corteModal.style.display = 'none'; 
-        await cargarTablas();
-    } catch (error) {
-        alert("Error en el corte: " + error.message);
-    }
+        corteModal.style.display = 'none'; await cargarTablas();
+    } catch (error) { alert("Error en el corte: " + error.message); }
 });
 
 document.addEventListener('DOMContentLoaded', () => { cargarSelectores(); cargarTablas(); });
