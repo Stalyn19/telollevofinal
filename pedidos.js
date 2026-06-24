@@ -9,7 +9,6 @@ const inputDistancia = document.getElementById('distancia');
 const inputPrecio = document.getElementById('precio');
 const selectPago = document.getElementById('pago');
 
-// Componentes del campo manual (Sincronizados sin rastro del error anterior)
 const paquetesGroup = document.getElementById('paquetesGroup');
 const inputMontoAdicional = document.getElementById('montoAdicional');
 
@@ -45,7 +44,6 @@ function actualizarPrecioEnPantalla() {
             inputPrecio.style.fontWeight = "bold";
         } else { 
             let cargoAdicional = 0;
-            // Captura el monto manual únicamente si es paquetería express de agencia
             if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
                 cargoAdicional = parseFloat(inputMontoAdicional.value) || 0;
             }
@@ -60,11 +58,9 @@ function actualizarPrecioEnPantalla() {
     }
 }
 
-// Escuchas reactivas en tiempo real para el cálculo en pantalla
 if(inputDistancia) inputDistancia.addEventListener('input', actualizarPrecioEnPantalla);
 if(inputMontoAdicional) inputMontoAdicional.addEventListener('input', actualizarPrecioEnPantalla);
 
-// Despliegue condicional del panel de dinero adicional
 if(selectPedido) {
     selectPedido.addEventListener('change', () => {
         if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
@@ -73,7 +69,7 @@ if(selectPedido) {
         } else {
             paquetesGroup.style.display = "none";
             inputMontoAdicional.removeAttribute('required');
-            inputMontoAdicional.value = 0; // Limpieza de seguridad
+            inputMontoAdicional.value = 0;
         }
         actualizarPrecioEnPantalla();
     });
@@ -92,7 +88,7 @@ async function cargarSelectores() {
     } catch (error) { console.error("Error cargando listas: ", error); }
 }
 
-// Renderizado de las colas de trabajo activas
+// Renderizado de las colas de trabajo activas (Modificado para renderizar la columna de tiempo)
 async function cargarTablas() {
     tablaPendientes.innerHTML = ''; tablaEntregados.innerHTML = '';
     try {
@@ -103,10 +99,14 @@ async function cargarTablas() {
             const tr = document.createElement('tr');
             const clienteMuestra = d.nombre_cliente || d.id_cliente;
             const empleadoMuestra = d.nombre_empleado || d.id_empleado;
+            
+            // Si el pedido es antiguo y no tenía la propiedad, muestra un guion por seguridad
+            const tiempoMuestra = d.fecha_hora_pedido || '---';
 
             if(d.estatus === "Pendiente") {
                 tr.innerHTML = `
                     <td><strong>${d.id_pedido}</strong></td>
+                    <td style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">${tiempoMuestra}</td>
                     <td>${clienteMuestra}</td>
                     <td>${empleadoMuestra}</td>
                     <td>${d.detalle_pedido}</td>
@@ -123,6 +123,7 @@ async function cargarTablas() {
             } else {
                 tr.innerHTML = `
                     <td><strong>${d.id_pedido}</strong></td>
+                    <td style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">${tiempoMuestra}</td>
                     <td>${clienteMuestra}</td>
                     <td>${empleadoMuestra}</td>
                     <td>${d.detalle_pedido}</td>
@@ -134,7 +135,6 @@ async function cargarTablas() {
             }
         });
 
-        // Eventos para conmutación de estados operativos
         document.querySelectorAll('.change-status').forEach(select => {
             select.addEventListener('change', async (e) => {
                 await updateDoc(doc(db, "pedidos", e.target.getAttribute('data-id')), { estatus: e.target.value });
@@ -174,7 +174,7 @@ form.addEventListener('submit', async (e) => {
 
     const precioTotalFinal = precioBase + costoAdicional;
     
-    // Generación de la estampa de tiempo local dominicana
+    // Generación de la estampa de tiempo local dominicana (Formato: DD/MM/AAAA hh:mm:ss AM/PM)
     const ahora = new Date();
     const timestampCompleto = ahora.toLocaleDateString('es-DO', { year: 'numeric', month: '2-digit', day: '2-digit' }) + ' ' + 
                             ahora.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
