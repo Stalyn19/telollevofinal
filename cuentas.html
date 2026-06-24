@@ -1,77 +1,198 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8"><title>Te lo llevo V2 - Control de Cuentas</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Te lo llevo V2 - Balances en Tiempo Real</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <header class="main-header">
-        <div class="logo"><a href="index.html"><h1>Te lo llevo 🏍️</h1></a></div>
+        <div class="logo">
+            <a href="index.html">
+                <img src="logo.png" alt="Te lo llevo Logo" class="logo-img">
+                <span class="logo-text">Te lo llevo</span>
+            </a>
+        </div>
         <nav class="nav-menu">
             <a href="index.html">Panel</a>
             <a href="pedidos.html">Pedidos</a>
+            <a href="nomina.html">Nómina</a>
             <a href="cuentas.html" class="active">Cuentas</a>
         </nav>
     </header>
+
     <main class="dashboard-container">
-        <h2 class="page-title">Estados de Cuentas por Clientes (Semana Activa)</h2>
+        <h2 class="page-title">Estados de Cuentas de Clientes (Semana Activa)</h2>
+        <p style="color:var(--text-muted); margin-bottom:1.5rem;">Monitoreo de balances acumulados en tiempo real antes del próximo corte semanal.</p>
+        
         <div class="table-card">
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>ID Cliente</th>
-                        <th>Nombre Comercial / Personal</th>
-                        <th>Pedidos Totales</th>
-                        <th>Pendientes</th>
-                        <th>Entregados</th>
-                        <th>Total Acumulado (RD$)</th>
+                        <th>Código Cliente</th>
+                        <th>Nombre del Cliente</th>
+                        <th>Envíos en la Semana</th>
+                        <th>Balance Acumulado (RD$)</th>
                     </tr>
                 </thead>
-                <tbody id="cuentasBody"></tbody>
+                <tbody id="cuentasBody">
+                    <tr><td colspan="4" style="text-align:center; color:var(--text-muted);">Calculando balances en vivo...</td></tr>
+                </tbody>
             </table>
         </div>
     </main>
+
+    <div id="cuentaClienteModal" class="modal">
+        <div class="modal-content" style="max-width: 650px; text-align: left;">
+            <h3 id="modalClienteNombre" style="color: #1e3c72; margin-bottom: 5px;"></h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">Detalle de órdenes activas registradas en el sistema:</p>
+            
+            <div style="max-height: 320px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px;">
+                <table class="data-table" style="margin-top: 0; width: 100%;">
+                    <thead>
+                        <tr>
+                            <th style="padding: 10px;">Fecha y Hora</th>
+                            <th style="padding: 10px;">Mercancía / Detalle</th>
+                            <th style="padding: 10px;">Estatus</th>
+                            <th style="padding: 10px; text-align: right;">Precio</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalClienteTablaBody"></tbody>
+                </table>
+            </div>
+            
+            <div style="margin-top: 1.5rem; text-align: right; font-size: 1.2rem; border-top: 2px dashed #cbd5e1; padding-top: 10px;">
+                <strong>Balance Total al Instante: <span id="modalClienteTotal" style="color: var(--success-green);"></span></strong>
+            </div>
+            
+            <button id="btnCerrarModal" class="btn-primary" style="margin-top: 1.5rem; background: #64748b;">Cerrar Reporte</button>
+        </div>
+    </div>
+
+    <footer><p>Te lo llevo © 2026 - Control Financiero Inteligente</p></footer>
+
+    <script type="module">
+        import { auth, onAuthStateChanged } from "./firebase-config.js";
+        onAuthStateChanged(auth, (user) => { if (!user) window.location.href = "login.html"; });
+    </script>
+
     <script type="module">
         import { db, collection, getDocs, query, where } from "./firebase-config.js";
 
-        async function cargarCuentas() {
-            const cliSnap = await getDocs(query(collection(db, "clientes"), where("activo", "==", true)));
-            const pedSnap = await getDocs(query(collection(db, "pedidos"), where("valido", "==", true)));
-            
-            const mapaCli = {};
-            cliSnap.forEach(c => {
-                mapaCli[c.data().id_auto] = { nombre: c.data().nombre, totales: 0, pendientes: 0, entregados: 0, dinero: 0 };
-            });
+        // Memoria volátil para indexar los pedidos por cliente al vuelo
+        let pedidosActivosMemory = {};
 
-            pedSnap.forEach(p => {
-                const d = p.data();
-                if(mapaCli[d.id_cliente]) {
-                    mapaCli[d.id_cliente].totales += 1;
-                    if(d.estatus === "Pendiente") mapaCli[d.id_cliente].pendientes += 1;
-                    if(d.estatus === "Entregado") {
-                        mapaCli[d.id_cliente].entregados += 1;
-                        mapaCli[d.id_cliente].dinero += parseFloat(d.precio || 0);
+        async function cargarBalancesCuentas() {
+            try {
+                // 1. Descargamos los clientes activos maestros
+                const snapClientes = await getDocs(query(collection(db, "clientes"), where("activo", "==", true)));
+                // 2. Descargamos los pedidos de la semana actual (válidos y no archivados)
+                const snapPedidos = await getDocs(query(collection(db, "pedidos"), where("valido", "==", true)));
+
+                const mapaCuentas = {};
+                pedidosActivosMemory = {}; // Limpieza de seguridad
+
+                // Inicializar mapa con los clientes reales
+                snapClientes.forEach(c => {
+                    const data = c.data();
+                    mapaCuentas[data.id_auto] = { nombre: data.nombre, envios: 0, balance: 0 };
+                    pedidosActivosMemory[data.id_auto] = []; // Inicializar la cola de órdenes del cliente
+                });
+
+                // Clasificar y acumular pedidos en tiempo real
+                snapPedidos.forEach(p => {
+                    const data = p.data();
+                    const idCli = data.id_cliente;
+
+                    if (mapaCuentas[idCli]) {
+                        mapaCuentas[idCli].envios += 1;
+                        mapaCuentas[idCli].balance += parseFloat(data.precio || 0);
+                        
+                        // Guardamos el objeto completo del pedido en el casillero del cliente
+                        pedidosActivosMemory[idCli].push(data);
                     }
-                }
-            });
+                });
 
-            const tbody = document.getElementById('cuentasBody');
-            tbody.innerHTML = '';
-            for(let key in mapaCli) {
-                const c = mapaCli[key];
-                tbody.innerHTML += `
-                    <tr>
-                        <td><strong>${key}</strong></td>
-                        <td>${c.nombre}</td>
-                        <td>${c.totales}</td>
-                        <td><span class="badge badge-pendiente">${c.pendientes}</span></td>
-                        <td><span class="badge badge-entregado">${c.entregados}</span></td>
-                        <td><strong>RD$ ${c.dinero.toFixed(2)}</strong></td>
-                    </tr>
-                `;
+                const tbody = document.getElementById('cuentasBody');
+                tbody.innerHTML = '';
+
+                // Renderizar la tabla principal de balances
+                for (let key in mapaCuentas) {
+                    const cli = mapaCuentas[key];
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><strong>${key}</strong></td>
+                            <td>
+                                <span class="link-cuenta-en-vivo" data-id="${key}" data-nombre="${cli.nombre}" style="cursor:pointer; color:#1e3c72; text-decoration:underline; font-weight:600;">
+                                    ${cli.nombre}
+                                </span>
+                            </td>
+                            <td><span class="badge badge-pendiente" style="background-color:#e2e8f0; color:#334155;">${cli.envios} despachos</span></td>
+                            <td style="color:#1e3c72; font-weight:bold; font-size:1.05rem;">RD$ ${cli.balance.toFixed(2)}</td>
+                        </tr>
+                    `;
+                }
+
+                if (Object.keys(mapaCuentas).length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No hay clientes registrados en el sistema.</td></tr>';
+                }
+
+                // ASIGNAR ACCIÓN CLIC A LOS NOMBRES DE LOS CLIENTES
+                document.querySelectorAll('.link-cuenta-en-vivo').forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        const idCliente = e.currentTarget.getAttribute('data-id');
+                        const nombreCliente = e.currentTarget.getAttribute('data-nombre');
+                        
+                        // Extraer de memoria las órdenes del cliente seleccionado
+                        const ordenesDelCliente = pedidosActivosMemory[idCliente] || [];
+
+                        // Poblar la ventana emergente
+                        document.getElementById('modalClienteNombre').textContent = `📊 Balance en Vivo: ${nombreCliente}`;
+                        
+                        const modalTableBody = document.getElementById('modalClienteTablaBody');
+                        modalTableBody.innerHTML = '';
+                        let sumaTotalRealTime = 0;
+
+                        ordenesDelCliente.forEach(pedido => {
+                            sumaTotalRealTime += parseFloat(pedido.precio || 0);
+                            const horaFormateada = pedido.fecha_hora_pedido || '---';
+                            
+                            // Asignar el estilo del badge según el estatus actual en carretera
+                            const badgeStyle = pedido.estatus === "Entregado" ? "badge-entregado" : "badge-pendiente";
+
+                            modalTableBody.innerHTML += `
+                                <tr>
+                                    <td style="padding: 8px 10px; font-size:0.85rem;">${horaFormateada}</td>
+                                    <td style="padding: 8px 10px;"><strong>${pedido.detalle_pedido}</strong></td>
+                                    <td style="padding: 8px 10px;"><span class="badge ${badgeStyle}">${pedido.estatus}</span></td>
+                                    <td style="padding: 8px 10px; text-align: right; font-weight: 600; color: #1e3c72;">RD$ ${parseFloat(pedido.precio).toFixed(2)}</td>
+                                </tr>
+                            `;
+                        });
+
+                        if(ordenesDelCliente.length === 0) {
+                            modalTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding: 15px;">Este cliente no registra órdenes en la presente semana.</td></tr>';
+                        }
+
+                        document.getElementById('modalClienteTotal').textContent = `RD$ ${sumaTotalRealTime.toFixed(2)}`;
+                        
+                        // Levantar el modal flotante
+                        document.getElementById('cuentaClienteModal').style.display = 'flex';
+                    });
+                });
+
+            } catch (error) {
+                console.error("Error al procesar balances en tiempo real: ", error);
             }
         }
-        document.addEventListener('DOMContentLoaded', cargarCuentas);
+
+        // Control de cierre del modal
+        const modal = document.getElementById('cuentaClienteModal');
+        document.getElementById('btnCerrarModal').addEventListener('click', () => modal.style.display = 'none');
+        window.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+
+        document.addEventListener('DOMContentLoaded', cargarBalancesCuentas);
     </script>
 </body>
 </html>
