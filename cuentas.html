@@ -23,8 +23,13 @@
     </header>
 
     <main class="dashboard-container">
-        <h2 class="page-title">Estados de Cuentas de Clientes (Semana Activa)</h2>
-        <p style="color:var(--text-muted); margin-bottom:1.5rem;">Monitoreo de balances acumulados en tiempo real antes del próximo corte semanal.</p>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+            <div>
+                <h2 class="page-title" style="margin-bottom: 0;">Estados de Cuentas de Clientes (Semana Activa)</h2>
+                <p style="color:var(--text-muted); margin-top: 4px; margin-bottom: 0;">Monitoreo de balances acumulados en tiempo real antes del próximo corte semanal.</p>
+            </div>
+            <button id="btnAbrirTotales" class="btn-corte" style="margin-bottom: 0; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">📊 Ver Totales de la Semana</button>
+        </div>
         
         <div class="table-card">
             <table class="data-table">
@@ -42,6 +47,27 @@
             </table>
         </div>
     </main>
+
+    <div id="totalesGeneralesModal" class="modal">
+        <div class="modal-content" style="max-width: 450px; text-align: center; padding: 2.5rem;">
+            <div style="font-size: 3rem; margin-bottom: 0.5rem;">📈</div>
+            <h3 style="color: #1e3c72; margin-bottom: 0.2rem;">Resumen General de Operaciones</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem;">Rendimiento contable de la semana en curso</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 2rem;">
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px;">
+                    <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: bold;">Total de Viajes</span>
+                    <h2 id="modalTotalViajes" style="margin: 5px 0 0 0; color: #334155; font-size: 2rem;">0</h2>
+                </div>
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px;">
+                    <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #166534; font-weight: bold;">Total de Ganancias en Pedidos</span>
+                    <h2 id="modalTotalGanancias" style="margin: 5px 0 0 0; color: var(--success-green); font-size: 2rem;">RD$ 0.00</h2>
+                </div>
+            </div>
+            
+            <button id="btnCerrarTotalesModal" class="btn-primary" style="background: #64748b; width: 100%;">Entendido / Cerrar</button>
+        </div>
+    </div>
 
     <div id="cuentaClienteModal" class="modal">
         <div class="modal-content" style="max-width: 650px; text-align: left;">
@@ -72,49 +98,56 @@
 
     <footer><p>Te lo llevo © 2026 - Control Financiero Inteligente</p></footer>
 
-
-
     <script type="module">
         import { db, collection, getDocs, query, where } from "./firebase-config.js";
 
-        // Memoria volátil para indexar los pedidos por cliente al vuelo
         let pedidosActivosMemory = {};
+        
+        // NUEVO: Variables globales de control para los acumulados generales
+        let acumuladoGlobalViajes = 0;
+        let acumuladoGlobalGanancias = 0;
 
         async function cargarBalancesCuentas() {
             try {
-                // 1. Descargamos los clientes activos maestros
                 const snapClientes = await getDocs(query(collection(db, "clientes"), where("activo", "==", true)));
-                // 2. Descargamos los pedidos de la semana actual (válidos y no archivados)
                 const snapPedidos = await getDocs(query(collection(db, "pedidos"), where("valido", "==", true)));
 
                 const mapaCuentas = {};
-                pedidosActivosMemory = {}; // Limpieza de seguridad
+                pedidosActivosMemory = {}; 
+                
+                // NUEVO: Reseteo preventivo de acumuladores cada vez que se refresca la pantalla
+                acumuladoGlobalViajes = 0;
+                acumuladoGlobalGanancias = 0;
 
-                // Inicializar mapa con los clientes reales
                 snapClientes.forEach(c => {
                     const data = c.data();
                     mapaCuentas[data.id_auto] = { nombre: data.nombre, envios: 0, balance: 0 };
-                    pedidosActivosMemory[data.id_auto] = []; // Inicializar la cola de órdenes del cliente
+                    pedidosActivosMemory[data.id_auto] = []; 
                 });
 
-                // Clasificar y acumular pedidos en tiempo real
                 snapPedidos.forEach(p => {
                     const data = p.data();
                     const idCli = data.id_cliente;
+                    const precioPedido = parseFloat(data.precio || 0);
+
+                    // NUEVO: Sumar de manera incondicional al acumulado contable global de la empresa
+                    acumuladoGlobalViajes += 1;
+                    acumuladoGlobalGanancias += precioPedido;
 
                     if (mapaCuentas[idCli]) {
                         mapaCuentas[idCli].envios += 1;
-                        mapaCuentas[idCli].balance += parseFloat(data.precio || 0);
-                        
-                        // Guardamos el objeto completo del pedido en el casillero del cliente
+                        mapaCuentas[idCli].balance += precioPedido;
                         pedidosActivosMemory[idCli].push(data);
                     }
                 });
 
+                // Inyectar los valores finales calculados directamente en las etiquetas del modal general
+                document.getElementById('modalTotalViajes').textContent = `${acumuladoGlobalViajes} envíos`;
+                document.getElementById('modalTotalGanancias').textContent = `RD$ ${acumuladoGlobalGanancias.toFixed(2)}`;
+
                 const tbody = document.getElementById('cuentasBody');
                 tbody.innerHTML = '';
 
-                // Renderizar la tabla principal de balances
                 for (let key in mapaCuentas) {
                     const cli = mapaCuentas[key];
                     tbody.innerHTML += `
@@ -135,16 +168,13 @@
                     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No hay clientes registrados en el sistema.</td></tr>';
                 }
 
-                // ASIGNAR ACCIÓN CLIC A LOS NOMBRES DE LOS CLIENTES
+                // Clic para reportes individuales de clientes
                 document.querySelectorAll('.link-cuenta-en-vivo').forEach(link => {
                     link.addEventListener('click', (e) => {
                         const idCliente = e.currentTarget.getAttribute('data-id');
                         const nombreCliente = e.currentTarget.getAttribute('data-nombre');
-                        
-                        // Extraer de memoria las órdenes del cliente seleccionado
                         const ordenesDelCliente = pedidosActivosMemory[idCliente] || [];
 
-                        // Poblar la ventana emergente
                         document.getElementById('modalClienteNombre').textContent = `📊 Balance en Vivo: ${nombreCliente}`;
                         
                         const modalTableBody = document.getElementById('modalClienteTablaBody');
@@ -154,8 +184,6 @@
                         ordenesDelCliente.forEach(pedido => {
                             sumaTotalRealTime += parseFloat(pedido.precio || 0);
                             const horaFormateada = pedido.fecha_hora_pedido || '---';
-                            
-                            // Asignar el estilo del badge según el estatus actual en carretera
                             const badgeStyle = pedido.estatus === "Entregado" ? "badge-entregado" : "badge-pendiente";
 
                             modalTableBody.innerHTML += `
@@ -173,8 +201,6 @@
                         }
 
                         document.getElementById('modalClienteTotal').textContent = `RD$ ${sumaTotalRealTime.toFixed(2)}`;
-                        
-                        // Levantar el modal flotante
                         document.getElementById('cuentaClienteModal').style.display = 'flex';
                     });
                 });
@@ -184,10 +210,28 @@
             }
         }
 
-        // Control de cierre del modal
-        const modal = document.getElementById('cuentaClienteModal');
-        document.getElementById('btnCerrarModal').addEventListener('click', () => modal.style.display = 'none');
-        window.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+        // NUEVO: CONTROL DE APERTURA Y CIERRE DEL MODAL DE TOTALES GENERALES
+        const totalesModal = document.getElementById('totalesGeneralesModal');
+        const clienteModal = document.getElementById('cuentaClienteModal');
+
+        document.getElementById('btnAbrirTotales').addEventListener('click', () => {
+            totalesModal.style.display = 'flex';
+        });
+
+        document.getElementById('btnCerrarTotalesModal').addEventListener('click', () => {
+            totalesModal.style.display = 'none';
+        });
+
+        // Controles de cierre del modal individual de clientes
+        document.getElementById('btnCerrarModal').addEventListener('click', () => {
+            clienteModal.style.display = 'none';
+        });
+
+        // Cierre de ventanas al hacer clic en las áreas oscuras exteriores
+        window.addEventListener('click', (e) => { 
+            if (e.target === totalesModal) totalesModal.style.display = 'none'; 
+            if (e.target === clienteModal) clienteModal.style.display = 'none'; 
+        });
 
         document.addEventListener('DOMContentLoaded', cargarBalancesCuentas);
     </script>
