@@ -333,6 +333,37 @@ document.getElementById('btnDescargarPDF').addEventListener('click', () => {
     });
 });
 
+//------------------------------------------
+
+function descargarPDF() {
+    // 1. Captura el elemento correcto que tiene los datos
+    const elemento = document.getElementById('areaImprimible'); 
+    
+    if(!elemento) {
+        alert("Error: No se encontró el contenedor del reporte.");
+        return;
+    }
+
+    // 2. Configuración avanzada para evitar hojas en blanco
+    const opciones = {
+        margin:       0.5,
+        filename:     'Reporte_Semanal.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { 
+            scale: 2,             // Mejora la resolución del texto
+            useCORS: true,        // Permite cargar imágenes/logos externos si los hay
+            scrollY: 0            // Evita que el scroll actual del usuario corte el PDF
+        },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    // 3. Ejecutar la conversión limpia
+    html2pdf().set(opciones).from(elemento).save();
+}
+
+//------------------------------------
+
+
         // Eventos del Modal de Cliente
         const clModal = document.getElementById('clienteModal');
         document.getElementById('btnCerrarClienteModal').addEventListener('click', () => clModal.style.display = 'none');
