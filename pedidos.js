@@ -9,20 +9,22 @@ const inputDistancia = document.getElementById('distancia');
 const inputPrecio = document.getElementById('precio');
 const selectPago = document.getElementById('pago');
 
-// Captura de las nuevas casillas condicionales
+// Casillas de paquetería
 const paquetesGroup = document.getElementById('paquetesGroup');
 const inputCantPaquetes = document.getElementById('cantPaquetes');
 const inputMontoAdicional = document.getElementById('montoAdicional');
 
 const tablaPendientes = document.getElementById('tablaPendientes');
 const tablaEntregados = document.getElementById('tablaEntregados');
+
+// Elementos del Modal de Corte
 const btnCorteNomina = document.getElementById('btnCorteNomina');
 const corteModal = document.getElementById('corteModal');
 const cortePassword = document.getElementById('cortePassword');
 const btnEjecutarCorte = document.getElementById('btnEjecutarCorte');
 const btnCancelarCorte = document.getElementById('btnCancelarCorte');
 
-// Matriz tarifaria oficial por kilometraje
+// Matriz tarifaria
 function calcularPrecio(dist) {
     if (dist < 0) return 0;
     if (dist <= 5) return 200;
@@ -35,7 +37,7 @@ function calcularPrecio(dist) {
     return -1;
 }
 
-// Lógica de cálculo sumando el dinero extra ingresado de forma manual
+// Cálculo en pantalla
 function actualizarPrecioEnPantalla() {
     const d = parseFloat(inputDistancia.value);
     if(!isNaN(d)) {
@@ -46,11 +48,9 @@ function actualizarPrecioEnPantalla() {
             inputPrecio.style.fontWeight = "bold";
         } else { 
             let cargoAdicional = 0;
-            // Suma el valor numérico digitado en la caja de dinero
             if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
                 cargoAdicional = parseFloat(inputMontoAdicional.value) || 0;
             }
-            
             const precioFinal = precioBase + cargoAdicional;
             inputPrecio.value = precioFinal.toFixed(2); 
             inputPrecio.style.color = "inherit";
@@ -64,7 +64,7 @@ function actualizarPrecioEnPantalla() {
 if(inputDistancia) inputDistancia.addEventListener('input', actualizarPrecioEnPantalla);
 if(inputMontoAdicional) inputMontoAdicional.addEventListener('input', actualizarPrecioEnPantalla);
 
-// Despliegue/Ocultación del contenedor con ambas casillas operativas
+// Despliegue de casillas de agencia
 if(selectPedido) {
     selectPedido.addEventListener('change', () => {
         if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
@@ -75,14 +75,14 @@ if(selectPedido) {
             paquetesGroup.style.display = "none";
             inputCantPaquetes.removeAttribute('required');
             inputMontoAdicional.removeAttribute('required');
-            inputCantPaquetes.value = 1; // Reseteo de seguridad
+            inputCantPaquetes.value = 1;
             inputMontoAdicional.value = 0;
         }
         actualizarPrecioEnPantalla();
     });
 }
 
-// Carga de selectores desde Firebase
+// Carga de selectores
 async function cargarSelectores() {
     try {
         const snapC = await getDocs(query(collection(db, "clientes"), where("activo", "==", true)));
@@ -95,7 +95,7 @@ async function cargarSelectores() {
     } catch (error) { console.error("Error cargando listas: ", error); }
 }
 
-// Renderizado dinámico de tablas de control operativo
+// Cargar Tablas operativas
 async function cargarTablas() {
     tablaPendientes.innerHTML = ''; tablaEntregados.innerHTML = '';
     try {
@@ -158,11 +158,11 @@ async function cargarTablas() {
     } catch (error) { console.error("Error al renderizar paneles: ", error); }
 }
 
-// Guardado en Firebase con la data estructurada de ambos campos nuevos
+// GUARDAR NUEVO PEDIDO
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (selectCliente.selectedIndex <= 0 || selectEmpleado.selectedIndex <= 0) {
-        alert("⚠️ Por favor, seleccione un Cliente y un Mensajero válidos de la lista.");
+        alert("⚠️ Por favor, seleccione un Cliente y un Mensajero válidos.");
         return;
     }
 
@@ -174,7 +174,6 @@ form.addEventListener('submit', async (e) => {
     let costoAdicional = 0;
     let totalPaquetes = 0;
 
-    // Captura unificada de cantidad y dinero manual para el string descriptivo
     if(selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
         costoAdicional = parseFloat(inputMontoAdicional.value) || 0;
         totalPaquetes = parseInt(inputCantPaquetes.value) || 1;
@@ -195,7 +194,7 @@ form.addEventListener('submit', async (e) => {
             id_empleado: selectEmpleado.value,
             nombre_empleado: selectEmpleado.options[selectEmpleado.selectedIndex].text,
             detalle_pedido: detalleFinal,
-            cantidad_paquetes: totalPaquetes, // Guardado nativo del número de bultos
+            cantidad_paquetes: totalPaquetes,
             distancia: dist,
             precio: precioTotalFinal,
             estatus: "Pendiente",
@@ -214,18 +213,21 @@ form.addEventListener('submit', async (e) => {
     }
 });
 
-// Procesamiento de Cortes Semanales
-// Procesamiento de Cortes Semanales (Con protección Anti-Doble Clic)
+// ABRIR/CERRAR MODAL DE CORTE
+btnCorteNomina.addEventListener('click', () => { corteModal.style.display = 'flex'; cortePassword.value = ''; });
+btnCancelarCorte.addEventListener('click', () => corteModal.style.display = 'none');
+
+// EJECUTAR CORTE SEMANAL (BLINDADO ANTI-DOBLE CLIC)
 btnEjecutarCorte.addEventListener('click', async () => {
     if(cortePassword.value !== "te_lo_llevo_2026") { 
         alert("Contraseña Maestra Inválida."); 
         return; 
     }
 
-    // 1. BLOQUEAR EL BOTÓN PARA EVITAR DUPLICADOS
+    // Bloquear el botón temporalmente
     btnEjecutarCorte.disabled = true;
     btnEjecutarCorte.innerText = "Procesando... ⏳";
-    btnCancelarCorte.style.display = "none"; // Ocultar botón cancelar por seguridad
+    btnCancelarCorte.style.display = "none";
 
     try {
         const snap = await getDocs(query(collection(db, "pedidos"), where("valido", "==", true), where("estatus", "==", "Entregado")));
@@ -244,14 +246,14 @@ btnEjecutarCorte.addEventListener('click', async () => {
         const periodoStr = `${primerPedido} al ${ultimoPedido}`;
         const timestampCorte = new Date().toLocaleString('es-DO', { hour12: true });
 
-        // 2. CREAR EL REPORTE MAESTRO
+        // Guardar el corte maestro
         await addDoc(collection(db, "cortes_semanales"), {
             periodo: periodoStr,
             pedidos: entregados,
             fecha_corte: timestampCorte 
         });
 
-        // 3. ARCHIVAR TODOS LOS PEDIDOS AL MISMO TIEMPO
+        // Archivar todo masivamente
         const promesasDeActualizacion = entregados.map(p => 
             updateDoc(doc(db, "pedidos", p.id_firestore), { valido: false, archivado: true })
         );
@@ -268,10 +270,12 @@ btnEjecutarCorte.addEventListener('click', async () => {
     }
 });
 
-// Función de apoyo para devolver el botón a la normalidad
+// Función auxiliar para restablecer el botón
 function restaurarBotonCorte() {
     btnEjecutarCorte.disabled = false;
     btnEjecutarCorte.innerText = "Proceder con el Corte";
     btnCancelarCorte.style.display = "inline-block";
     corteModal.style.display = 'none';
 }
+
+document.addEventListener('DOMContentLoaded', () => { cargarSelectores(); cargarTablas(); });
