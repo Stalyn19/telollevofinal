@@ -215,16 +215,28 @@ form.addEventListener('submit', async (e) => {
 });
 
 // Procesamiento de Cortes Semanales
-btnCorteNomina.addEventListener('click', () => { corteModal.style.display = 'flex'; cortePassword.value = ''; });
-btnCancelarCorte.addEventListener('click', () => corteModal.style.display = 'none');
-
+// Procesamiento de Cortes Semanales (Con protección Anti-Doble Clic)
 btnEjecutarCorte.addEventListener('click', async () => {
-    if(cortePassword.value !== "te_lo_llevo_2026") { alert("Contraseña Maestra Inválida."); return; }
+    if(cortePassword.value !== "te_lo_llevo_2026") { 
+        alert("Contraseña Maestra Inválida."); 
+        return; 
+    }
+
+    // 1. BLOQUEAR EL BOTÓN PARA EVITAR DUPLICADOS
+    btnEjecutarCorte.disabled = true;
+    btnEjecutarCorte.innerText = "Procesando... ⏳";
+    btnCancelarCorte.style.display = "none"; // Ocultar botón cancelar por seguridad
+
     try {
         const snap = await getDocs(query(collection(db, "pedidos"), where("valido", "==", true), where("estatus", "==", "Entregado")));
         const entregados = [];
         snap.forEach(d => { entregados.push({ id_firestore: d.id, ...d.data() }); });
-        if(entregados.length === 0) { alert("No existen órdenes completadas con éxito en esta semana para archivar."); corteModal.style.display = 'none'; return; }
+        
+        if(entregados.length === 0) { 
+            alert("No existen órdenes completadas con éxito en esta semana para archivar."); 
+            restaurarBotonCorte();
+            return; 
+        }
 
         entregados.sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
         const primerPedido = entregados[0].fecha.substring(0, 10);
@@ -232,16 +244,34 @@ btnEjecutarCorte.addEventListener('click', async () => {
         const periodoStr = `${primerPedido} al ${ultimoPedido}`;
         const timestampCorte = new Date().toLocaleString('es-DO', { hour12: true });
 
+        // 2. CREAR EL REPORTE MAESTRO
         await addDoc(collection(db, "cortes_semanales"), {
             periodo: periodoStr,
             pedidos: entregados,
             fecha_corte: timestampCorte 
         });
 
-        for(let p of entregados) { await updateDoc(doc(db, "pedidos", p.id_firestore), { valido: false, archivado: true }); }
-        alert(`¡Corte consolidado con éxito!`);
-        corteModal.style.display = 'none'; await cargarTablas();
-    } catch (error) { alert("Fallo durante el cierre contable: " + error.message); }
+        // 3. ARCHIVAR TODOS LOS PEDIDOS AL MISMO TIEMPO
+        const promesasDeActualizacion = entregados.map(p => 
+            updateDoc(doc(db, "pedidos", p.id_firestore), { valido: false, archivado: true })
+        );
+        await Promise.all(promesasDeActualizacion);
+
+        alert(`¡Corte consolidado con éxito! Se archivaron ${entregados.length} pedidos.`);
+        corteModal.style.display = 'none'; 
+        await cargarTablas();
+
+    } catch (error) { 
+        alert("Fallo durante el cierre contable: " + error.message); 
+    } finally {
+        restaurarBotonCorte();
+    }
 });
 
-document.addEventListener('DOMContentLoaded', () => { cargarSelectores(); cargarTablas(); });
+// Función de apoyo para devolver el botón a la normalidad
+function restaurarBotonCorte() {
+    btnEjecutarCorte.disabled = false;
+    btnEjecutarCorte.innerText = "Proceder con el Corte";
+    btnCancelarCorte.style.display = "inline-block";
+    corteModal.style.display = 'none';
+}
