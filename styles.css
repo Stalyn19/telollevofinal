@@ -368,3 +368,41 @@ footer {
 .main-header:hover .logo-img {
     transform: scale(1.08) rotate(-3deg); /* Simula el arranque o inclinación de la moto */
 }
+
+/* Reglas exclusivas para cuando se genera el PDF/Impresión */
+@media print {
+    /* 1. Ocultar absolutamente todo en la página (menú, botones, fondo, footer) */
+    body * {
+        visibility: hidden;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    
+    /* 2. Hacer que SOLO el contenedor del reporte y su contenido sean visibles */
+    #areaImprimible, #areaImprimible * {
+        visibility: visible;
+    }
+    
+    /* 3. Forzar al reporte a posicionarse arriba a la izquierda y ocupar toda la hoja */
+    #areaImprimible {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    /* 4. IMPORTANTE: Romper los límites de altura y scrolls para que salgan todas las filas */
+    .modal, .modal-content, div {
+        position: relative !important;
+        overflow: visible !important;
+        max-height: none !important;
+        display: block !important;
+    }
+
+    /* Ocultar los botones de acción dentro del reporte para que no salgan en el PDF */
+    .btn-primary, .btn-corte, button {
+        display: none !important;
+    }
+}

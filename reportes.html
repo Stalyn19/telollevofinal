@@ -52,7 +52,7 @@
 
                 <h3 id="modalClienteNombre" style="color: #1e3c72; margin-bottom: 5px;"></h3>
                 <p id="modalClientePeriodo" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;"></p>
-                
+                <div id="areaImprimible">
                 <div style="max-height: 50vh; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding-right: 5px;">
                     <table class="data-table" style="margin-top: 0; width: 100%;">
                         <thead>
@@ -65,6 +65,8 @@
                         <tbody id="modalClienteTablaBody"></tbody>
                     </table>
                 </div>
+                </div>
+
                 
                 <div style="margin-top: 1.5rem; text-align: right; font-size: 1.2rem; border-top: 2px dashed #cbd5e1; padding-top: 10px;">
                     <strong>Total General Acumulado: <span id="modalClienteTotal" style="color: var(--success-green);"></span></strong>
@@ -72,6 +74,7 @@
             </div>
             
             <!-- Botones de control fuera del área del PDF -->
+           
             <div style="display: flex; gap: 10px; margin-top: 1rem; padding: 0 15px;">
                 <button id="btnDescargarPDF" class="btn-primary" style="background: var(--success-green); flex: 1;">📥 Descargar PDF en PC</button>
                 <button id="btnCerrarClienteModal" class="btn-primary" style="background: #64748b; width: 120px;">Cerrar</button>
