@@ -61,18 +61,22 @@
                                 <option value="Partes de vehiculo">Partes de vehiculo</option>
                                 <option value="Equipos">Equipos</option>
                                 <option value="Maquinas de tatuar">Maquinas de tatuar</option>
-                            </select>
+                                <option value="Personalizado">Otro (Personalizado)</option> </select>
                         </div>
 
-                        <div id="paquetesGroup" style="display:none;">
-                            <div class="form-group">
-                                <label for="cantPaquetes">Cantidad de Paquetes</label>
-                                <input type="number" id="cantPaquetes" class="form-control" min="1" value="1" placeholder="Ej. 1">
-                            </div>
-                            <div class="form-group">
-                                <label for="montoAdicional">Monto Adicional por Paquetería (RD$)</label>
-                                <input type="number" id="montoAdicional" class="form-control" min="0" value="0" placeholder="Ej. 170 o 340">
-                            </div>
+                        <div class="form-group" id="customDetalleGroup" style="display:none;">
+                            <label for="customDetalle">Especifique el Tipo de Envío</label>
+                            <input type="text" id="customDetalle" class="form-control" placeholder="Ej. Nevera, Caja de herramientas">
+                        </div>
+
+                        <div class="form-group" id="cantPaquetesGroup" style="display:none;">
+                            <label for="cantPaquetes">Cantidad de Paquetes</label>
+                            <input type="number" id="cantPaquetes" class="form-control" min="1" value="1">
+                        </div>
+
+                        <div class="form-group" id="montoAdicionalGroup" style="display:none;">
+                            <label for="montoAdicional">Monto Adicional por Envío (RD$)</label>
+                            <input type="number" id="montoAdicional" class="form-control" min="0" value="0" placeholder="Ej. 150">
                         </div>
 
                         <div class="form-group">
@@ -148,8 +152,6 @@
     </div>
 
     <footer><p>Te lo llevo © 2026 - Eficiencia sobre ruedas</p></footer>
-
-
     
     <script type="module" src="pedidos.js"></script>
 </body>

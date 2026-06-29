@@ -9,22 +9,24 @@ const inputDistancia = document.getElementById('distancia');
 const inputPrecio = document.getElementById('precio');
 const selectPago = document.getElementById('pago');
 
-// Casillas de paquetería
-const paquetesGroup = document.getElementById('paquetesGroup');
+// Nuevos componentes modulares del DOM
+const customDetalleGroup = document.getElementById('customDetalleGroup');
+const customDetalleInput = document.getElementById('customDetalle');
+const cantPaquetesGroup = document.getElementById('cantPaquetesGroup');
 const inputCantPaquetes = document.getElementById('cantPaquetes');
+const montoAdicionalGroup = document.getElementById('montoAdicionalGroup');
 const inputMontoAdicional = document.getElementById('montoAdicional');
 
 const tablaPendientes = document.getElementById('tablaPendientes');
 const tablaEntregados = document.getElementById('tablaEntregados');
 
-// Elementos del Modal de Corte
 const btnCorteNomina = document.getElementById('btnCorteNomina');
 const corteModal = document.getElementById('corteModal');
 const cortePassword = document.getElementById('cortePassword');
 const btnEjecutarCorte = document.getElementById('btnEjecutarCorte');
 const btnCancelarCorte = document.getElementById('btnCancelarCorte');
 
-// Matriz tarifaria
+// Matriz tarifaria oficial por kilometraje
 function calcularPrecio(dist) {
     if (dist < 0) return 0;
     if (dist <= 5) return 200;
@@ -37,7 +39,7 @@ function calcularPrecio(dist) {
     return -1;
 }
 
-// Cálculo en pantalla
+// Función unificada para calcular la base de la ruta más el extra manual universal
 function actualizarPrecioEnPantalla() {
     const d = parseFloat(inputDistancia.value);
     if(!isNaN(d)) {
@@ -47,10 +49,12 @@ function actualizarPrecioEnPantalla() {
             inputPrecio.style.color = "red";
             inputPrecio.style.fontWeight = "bold";
         } else { 
+            // El cargo adicional ahora se lee de manera incondicional para cualquier opción seleccionada
             let cargoAdicional = 0;
-            if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
+            if (selectPedido.value !== "") {
                 cargoAdicional = parseFloat(inputMontoAdicional.value) || 0;
             }
+            
             const precioFinal = precioBase + cargoAdicional;
             inputPrecio.value = precioFinal.toFixed(2); 
             inputPrecio.style.color = "inherit";
@@ -64,25 +68,46 @@ function actualizarPrecioEnPantalla() {
 if(inputDistancia) inputDistancia.addEventListener('input', actualizarPrecioEnPantalla);
 if(inputMontoAdicional) inputMontoAdicional.addEventListener('input', actualizarPrecioEnPantalla);
 
-// Despliegue de casillas de agencia
+// Despliegue inteligente y dinámico de celdas según selección
 if(selectPedido) {
     selectPedido.addEventListener('change', () => {
-        if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
-            paquetesGroup.style.display = "block";
+        const val = selectPedido.value;
+
+        // 1. Control del campo personalizado
+        if (val === "Personalizado") {
+            customDetalleGroup.style.display = "block";
+            customDetalleInput.setAttribute('required', 'true');
+        } else {
+            customDetalleGroup.style.display = "none";
+            customDetalleInput.removeAttribute('required');
+            customDetalleInput.value = "";
+        }
+
+        // 2. Control de cantidad de paquetes (Exclusivo agencias)
+        if (val === "Vimen Paq" || val === "Caribe Paq") {
+            cantPaquetesGroup.style.display = "block";
             inputCantPaquetes.setAttribute('required', 'true');
+        } else {
+            cantPaquetesGroup.style.display = "none";
+            inputCantPaquetes.removeAttribute('required');
+            inputCantPaquetes.value = 1;
+        }
+
+        // 3. Control del monto adicional (Universal para cualquier selección válida)
+        if (val !== "") {
+            montoAdicionalGroup.style.display = "block";
             inputMontoAdicional.setAttribute('required', 'true');
         } else {
-            paquetesGroup.style.display = "none";
-            inputCantPaquetes.removeAttribute('required');
+            montoAdicionalGroup.style.display = "none";
             inputMontoAdicional.removeAttribute('required');
-            inputCantPaquetes.value = 1;
             inputMontoAdicional.value = 0;
         }
+        
         actualizarPrecioEnPantalla();
     });
 }
 
-// Carga de selectores
+// Carga e indexación de listas desplegables maestros
 async function cargarSelectores() {
     try {
         const snapC = await getDocs(query(collection(db, "clientes"), where("activo", "==", true)));
@@ -95,7 +120,7 @@ async function cargarSelectores() {
     } catch (error) { console.error("Error cargando listas: ", error); }
 }
 
-// Cargar Tablas operativas
+// Renderizado de las colas de trabajo activas
 async function cargarTablas() {
     tablaPendientes.innerHTML = ''; tablaEntregados.innerHTML = '';
     try {
@@ -158,11 +183,11 @@ async function cargarTablas() {
     } catch (error) { console.error("Error al renderizar paneles: ", error); }
 }
 
-// GUARDAR NUEVO PEDIDO
+// Guardado Seguro de Pedidos Estructurados
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (selectCliente.selectedIndex <= 0 || selectEmpleado.selectedIndex <= 0) {
-        alert("⚠️ Por favor, seleccione un Cliente y un Mensajero válidos.");
+        alert("⚠️ Por favor, seleccione un Cliente y un Mensajero válidos de la lista.");
         return;
     }
 
@@ -171,13 +196,20 @@ form.addEventListener('submit', async (e) => {
     if(precioBase === -1) { alert("🚨 Operación Bloqueada: Destino fuera de la cobertura geográfica."); return; }
 
     let detalleFinal = selectPedido.value;
-    let costoAdicional = 0;
+    let costoAdicional = parseFloat(inputMontoAdicional.value) || 0;
     let totalPaquetes = 0;
 
-    if(selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
-        costoAdicional = parseFloat(inputMontoAdicional.value) || 0;
+    // Construcción limpia de la descripción del pedido
+    if (selectPedido.value === "Personalizado") {
+        detalleFinal = customDetalleInput.value.trim();
+    } else if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
         totalPaquetes = parseInt(inputCantPaquetes.value) || 1;
-        detalleFinal = `${selectPedido.value} (${totalPaquetes} Paq. - Ext: RD$ ${costoAdicional})`;
+        detalleFinal = `${selectPedido.value} (${totalPaquetes} Paq.)`;
+    }
+
+    // Inyección automatizada de la marca de cargo extra para lectura de Nómina y Cuentas
+    if (costoAdicional > 0) {
+        detalleFinal += ` (Ext: RD$ ${costoAdicional})`;
     }
 
     const precioTotalFinal = precioBase + costoAdicional;
@@ -205,7 +237,9 @@ form.addEventListener('submit', async (e) => {
         });
 
         form.reset(); 
-        paquetesGroup.style.display = "none"; 
+        customDetalleGroup.style.display = "none";
+        cantPaquetesGroup.style.display = "none";
+        montoAdicionalGroup.style.display = "none";
         await cargarTablas();
         alert("📦 ¡Pedido procesado y registrado con éxito!");
     } catch (error) {
@@ -213,18 +247,10 @@ form.addEventListener('submit', async (e) => {
     }
 });
 
-// ABRIR/CERRAR MODAL DE CORTE
-btnCorteNomina.addEventListener('click', () => { corteModal.style.display = 'flex'; cortePassword.value = ''; });
-btnCancelarCorte.addEventListener('click', () => corteModal.style.display = 'none');
-
-// EJECUTAR CORTE SEMANAL (BLINDADO ANTI-DOBLE CLIC)
+// Procesamiento de Cortes Semanales (Blindado anti-doble clic)
 btnEjecutarCorte.addEventListener('click', async () => {
-    if(cortePassword.value !== "te_lo_llevo_2026") { 
-        alert("Contraseña Maestra Inválida."); 
-        return; 
-    }
+    if(cortePassword.value !== "te_lo_llevo_2026") { alert("Contraseña Maestra Inválida."); return; }
 
-    // Bloquear el botón temporalmente
     btnEjecutarCorte.disabled = true;
     btnEjecutarCorte.innerText = "Procesando... ⏳";
     btnCancelarCorte.style.display = "none";
@@ -233,7 +259,6 @@ btnEjecutarCorte.addEventListener('click', async () => {
         const snap = await getDocs(query(collection(db, "pedidos"), where("valido", "==", true), where("estatus", "==", "Entregado")));
         const entregados = [];
         snap.forEach(d => { entregados.push({ id_firestore: d.id, ...d.data() }); });
-        
         if(entregados.length === 0) { 
             alert("No existen órdenes completadas con éxito en esta semana para archivar."); 
             restaurarBotonCorte();
@@ -246,23 +271,19 @@ btnEjecutarCorte.addEventListener('click', async () => {
         const periodoStr = `${primerPedido} al ${ultimoPedido}`;
         const timestampCorte = new Date().toLocaleString('es-DO', { hour12: true });
 
-        // Guardar el corte maestro
         await addDoc(collection(db, "cortes_semanales"), {
             periodo: periodoStr,
             pedidos: entregados,
             fecha_corte: timestampCorte 
         });
 
-        // Archivar todo masivamente
         const promesasDeActualizacion = entregados.map(p => 
             updateDoc(doc(db, "pedidos", p.id_firestore), { valido: false, archivado: true })
         );
         await Promise.all(promesasDeActualizacion);
 
         alert(`¡Corte consolidado con éxito! Se archivaron ${entregados.length} pedidos.`);
-        corteModal.style.display = 'none'; 
-        await cargarTablas();
-
+        corteModal.style.display = 'none'; await cargarTablas();
     } catch (error) { 
         alert("Fallo durante el cierre contable: " + error.message); 
     } finally {
@@ -270,7 +291,6 @@ btnEjecutarCorte.addEventListener('click', async () => {
     }
 });
 
-// Función auxiliar para restablecer el botón
 function restaurarBotonCorte() {
     btnEjecutarCorte.disabled = false;
     btnEjecutarCorte.innerText = "Proceder con el Corte";
