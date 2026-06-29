@@ -61,7 +61,8 @@
                                 <option value="Partes de vehiculo">Partes de vehiculo</option>
                                 <option value="Equipos">Equipos</option>
                                 <option value="Maquinas de tatuar">Maquinas de tatuar</option>
-                                <option value="Personalizado">Otro (Personalizado)</option> </select>
+                                <option value="Personalizado">Otro (Personalizado)</option>
+                            </select>
                         </div>
 
                         <div class="form-group" id="customDetalleGroup" style="display:none;">
@@ -100,6 +101,10 @@
             </div>
 
             <div class="table-container">
+                <div style="margin-bottom: 1.5rem;">
+                    <input type="text" id="buscadorPedidos" class="form-control" placeholder="🔍 Buscar por ID, Cliente, Mensajero, Mercancía..." style="width: 100%; border: 2px solid var(--border-color); border-radius: 8px; padding: 12px 15px; font-size: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                </div>
+
                 <div class="table-card" style="border-left: 4px solid var(--warning-amber);">
                     <h3>⏳ Pedidos Pendientes (En Camino)</h3>
                     <table class="data-table">

@@ -1,6 +1,5 @@
 import { db, collection, addDoc, getDocs, updateDoc, doc, query, where } from "./firebase-config.js";
 
-// Captura de elementos del DOM
 const form = document.getElementById('pedidoForm');
 const selectCliente = document.getElementById('idCliente');
 const selectEmpleado = document.getElementById('idEmpleado');
@@ -9,7 +8,6 @@ const inputDistancia = document.getElementById('distancia');
 const inputPrecio = document.getElementById('precio');
 const selectPago = document.getElementById('pago');
 
-// Nuevos componentes modulares del DOM
 const customDetalleGroup = document.getElementById('customDetalleGroup');
 const customDetalleInput = document.getElementById('customDetalle');
 const cantPaquetesGroup = document.getElementById('cantPaquetesGroup');
@@ -20,13 +18,15 @@ const inputMontoAdicional = document.getElementById('montoAdicional');
 const tablaPendientes = document.getElementById('tablaPendientes');
 const tablaEntregados = document.getElementById('tablaEntregados');
 
+// NUEVO: Captura del buscador
+const buscadorPedidos = document.getElementById('buscadorPedidos');
+
 const btnCorteNomina = document.getElementById('btnCorteNomina');
 const corteModal = document.getElementById('corteModal');
 const cortePassword = document.getElementById('cortePassword');
 const btnEjecutarCorte = document.getElementById('btnEjecutarCorte');
 const btnCancelarCorte = document.getElementById('btnCancelarCorte');
 
-// Matriz tarifaria oficial por kilometraje
 function calcularPrecio(dist) {
     if (dist < 0) return 0;
     if (dist <= 5) return 200;
@@ -39,7 +39,6 @@ function calcularPrecio(dist) {
     return -1;
 }
 
-// Función unificada para calcular la base de la ruta más el extra manual universal
 function actualizarPrecioEnPantalla() {
     const d = parseFloat(inputDistancia.value);
     if(!isNaN(d)) {
@@ -49,7 +48,6 @@ function actualizarPrecioEnPantalla() {
             inputPrecio.style.color = "red";
             inputPrecio.style.fontWeight = "bold";
         } else { 
-            // El cargo adicional ahora se lee de manera incondicional para cualquier opción seleccionada
             let cargoAdicional = 0;
             if (selectPedido.value !== "") {
                 cargoAdicional = parseFloat(inputMontoAdicional.value) || 0;
@@ -68,12 +66,10 @@ function actualizarPrecioEnPantalla() {
 if(inputDistancia) inputDistancia.addEventListener('input', actualizarPrecioEnPantalla);
 if(inputMontoAdicional) inputMontoAdicional.addEventListener('input', actualizarPrecioEnPantalla);
 
-// Despliegue inteligente y dinámico de celdas según selección
 if(selectPedido) {
     selectPedido.addEventListener('change', () => {
         const val = selectPedido.value;
 
-        // 1. Control del campo personalizado
         if (val === "Personalizado") {
             customDetalleGroup.style.display = "block";
             customDetalleInput.setAttribute('required', 'true');
@@ -83,7 +79,6 @@ if(selectPedido) {
             customDetalleInput.value = "";
         }
 
-        // 2. Control de cantidad de paquetes (Exclusivo agencias)
         if (val === "Vimen Paq" || val === "Caribe Paq") {
             cantPaquetesGroup.style.display = "block";
             inputCantPaquetes.setAttribute('required', 'true');
@@ -93,7 +88,6 @@ if(selectPedido) {
             inputCantPaquetes.value = 1;
         }
 
-        // 3. Control del monto adicional (Universal para cualquier selección válida)
         if (val !== "") {
             montoAdicionalGroup.style.display = "block";
             inputMontoAdicional.setAttribute('required', 'true');
@@ -107,7 +101,6 @@ if(selectPedido) {
     });
 }
 
-// Carga e indexación de listas desplegables maestros
 async function cargarSelectores() {
     try {
         const snapC = await getDocs(query(collection(db, "clientes"), where("activo", "==", true)));
@@ -120,14 +113,22 @@ async function cargarSelectores() {
     } catch (error) { console.error("Error cargando listas: ", error); }
 }
 
-// Renderizado de las colas de trabajo activas
 async function cargarTablas() {
     tablaPendientes.innerHTML = ''; tablaEntregados.innerHTML = '';
     try {
         const snap = await getDocs(query(collection(db, "pedidos"), where("valido", "==", true)));
         
+        // 1. Extraer los datos a un arreglo nativo
+        let listaPedidos = [];
         snap.forEach(docSnap => {
-            const d = docSnap.data();
+            listaPedidos.push({ id_firestore: docSnap.id, ...docSnap.data() });
+        });
+
+        // 2. NUEVO: Ordenar por creación cronológica (Más recientes primero)
+        listaPedidos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+        
+        // 3. Renderizar las filas ya ordenadas
+        listaPedidos.forEach(d => {
             const tr = document.createElement('tr');
             const clienteMuestra = d.nombre_cliente || d.id_cliente;
             const empleadoMuestra = d.nombre_empleado || d.id_empleado;
@@ -142,12 +143,12 @@ async function cargarTablas() {
                     <td>${d.detalle_pedido}</td>
                     <td>RD$ ${parseFloat(d.precio).toFixed(2)}</td>
                     <td>
-                        <select class="form-control change-status" data-id="${docSnap.id}">
+                        <select class="form-control change-status" data-id="${d.id_firestore}">
                             <option value="Pendiente" selected>Pendiente</option>
                             <option value="Entregado">Entregado</option>
                         </select>
                     </td>
-                    <td><button class="action-btn btn-delete btn-soft-del" data-id="${docSnap.id}">Invalidar</button></td>
+                    <td><button class="action-btn btn-delete btn-soft-del" data-id="${d.id_firestore}">Invalidar</button></td>
                 `;
                 tablaPendientes.appendChild(tr);
             } else {
@@ -159,16 +160,19 @@ async function cargarTablas() {
                     <td>${d.detalle_pedido}</td>
                     <td>RD$ ${parseFloat(d.precio).toFixed(2)}</td>
                     <td><span class="badge badge-entregado">${d.estatus}</span></td>
-                    <td><button class="action-btn btn-delete btn-soft-del" data-id="${docSnap.id}">Invalidar</button></td>
+                    <td><button class="action-btn btn-delete btn-soft-del" data-id="${d.id_firestore}">Invalidar</button></td>
                 `;
                 tablaEntregados.appendChild(tr);
             }
         });
 
+        // Reconectar los eventos a los botones después del ordenamiento
         document.querySelectorAll('.change-status').forEach(select => {
             select.addEventListener('change', async (e) => {
                 await updateDoc(doc(db, "pedidos", e.target.getAttribute('data-id')), { estatus: e.target.value });
                 cargarTablas();
+                // Limpia el buscador si había algo escrito para no perder resultados
+                if(buscadorPedidos) buscadorPedidos.value = '';
             });
         });
 
@@ -183,7 +187,25 @@ async function cargarTablas() {
     } catch (error) { console.error("Error al renderizar paneles: ", error); }
 }
 
-// Guardado Seguro de Pedidos Estructurados
+// NUEVO: Lógica de búsqueda dinámica "Contains" sobre las tablas visibles
+if (buscadorPedidos) {
+    buscadorPedidos.addEventListener('input', (e) => {
+        const termino = e.target.value.toLowerCase();
+        // Atrapa todas las filas de ambas tablas al mismo tiempo
+        const filas = document.querySelectorAll('#tablaPendientes tr, #tablaEntregados tr');
+        
+        filas.forEach(fila => {
+            // El innerText atrapa todo el contenido textual (Cliente, ID, Fecha, Precio...)
+            const textoFila = fila.innerText.toLowerCase();
+            if (textoFila.includes(termino)) {
+                fila.style.display = ''; // Lo deja visible si hay coincidencia
+            } else {
+                fila.style.display = 'none'; // Lo esconde de la vista si no coincide
+            }
+        });
+    });
+}
+
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (selectCliente.selectedIndex <= 0 || selectEmpleado.selectedIndex <= 0) {
@@ -199,7 +221,6 @@ form.addEventListener('submit', async (e) => {
     let costoAdicional = parseFloat(inputMontoAdicional.value) || 0;
     let totalPaquetes = 0;
 
-    // Construcción limpia de la descripción del pedido
     if (selectPedido.value === "Personalizado") {
         detalleFinal = customDetalleInput.value.trim();
     } else if (selectPedido.value === "Vimen Paq" || selectPedido.value === "Caribe Paq") {
@@ -207,7 +228,6 @@ form.addEventListener('submit', async (e) => {
         detalleFinal = `${selectPedido.value} (${totalPaquetes} Paq.)`;
     }
 
-    // Inyección automatizada de la marca de cargo extra para lectura de Nómina y Cuentas
     if (costoAdicional > 0) {
         detalleFinal += ` (Ext: RD$ ${costoAdicional})`;
     }
@@ -240,14 +260,17 @@ form.addEventListener('submit', async (e) => {
         customDetalleGroup.style.display = "none";
         cantPaquetesGroup.style.display = "none";
         montoAdicionalGroup.style.display = "none";
+        
+        // Refrescar y limpiar búsqueda
         await cargarTablas();
+        if(buscadorPedidos) buscadorPedidos.value = '';
+        
         alert("📦 ¡Pedido procesado y registrado con éxito!");
     } catch (error) {
         alert("🚨 Falla de Red/Permisos en Firebase: " + error.message);
     }
 });
 
-// Procesamiento de Cortes Semanales (Blindado anti-doble clic)
 btnEjecutarCorte.addEventListener('click', async () => {
     if(cortePassword.value !== "te_lo_llevo_2026") { alert("Contraseña Maestra Inválida."); return; }
 
