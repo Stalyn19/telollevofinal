@@ -2,10 +2,38 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Te lo llevo V2 - Historial de Reportes</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Te lo llevo V2 - Reportes y Facturación Histórica</title>
     <link rel="stylesheet" href="styles.css">
-    <!-- NUEVO: Cargamos la librería para conversión y descarga directa de PDFs de forma limpia -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        /* ========================================================
+           🔥 MAGIA DE IMPRESIÓN PARA FACTURAS HISTÓRICAS
+           ======================================================== */
+        @media screen {
+            #zonaFactura { display: none !important; }
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #zonaFactura, #zonaFactura * { visibility: visible; }
+            #zonaFactura {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 20px;
+                color: #000;
+                font-family: Arial, sans-serif;
+            }
+            .factura-header { text-align: center; border-bottom: 2px solid #000; margin-bottom: 20px; padding-bottom: 10px; }
+            .factura-header h1 { margin: 0; font-size: 28px; text-transform: uppercase; letter-spacing: 1px; }
+            .factura-meta { display: flex; justify-content: space-between; margin-bottom: 25px; font-size: 16px; }
+            .factura-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
+            .factura-table th, .factura-table td { border: 1px solid #000; padding: 10px; text-align: left; font-size: 14px; }
+            .factura-table th { background-color: #f0f0f0 !important; -webkit-print-color-adjust: exact; font-weight: bold; }
+            .factura-total { text-align: right; font-size: 20px; font-weight: bold; border-top: 2px solid #000; padding-top: 15px; }
+        }
+    </style>
 </head>
 <body>
     <header class="main-header">
@@ -16,389 +44,306 @@
             </a>
         </div>
         <nav class="nav-menu">
-            <a href="index.html">Panel Principal</a>
-            <a href="reportes.html" class="active">Reportes Históricos</a>
+            <a href="index.html">Panel</a>
+            <a href="pedidos.html">Pedidos</a>
+            <a href="cuentas.html">Cuentas</a>
+            <a href="reportes.html" class="active">Reportes</a>
         </nav>
     </header>
 
-    <main class="dashboard-container" id="mainContent">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <h2 class="page-title" style="margin-bottom: 0;">Historial Semanal de Reportes Consolidados</h2>
-            <!-- NUEVO: Botón maestro para limpiar el historial con advertencia visual -->
-            <button id="btnAbrirBorrado" class="btn-corte" style="margin-bottom: 0; background: linear-gradient(135deg, #e53e3e 0%, #b83232 100%);">🗑️ Vaciar Historial de Reportes</button>
+    <main class="dashboard-container">
+        <div style="margin-bottom:1.5rem;">
+            <h2 class="page-title" style="margin-bottom: 0;">Archivo de Cortes Semanales</h2>
+            <p style="color:var(--text-muted); margin-top: 4px;">Historial de operaciones archivadas y generación de facturas de cobro por periodo.</p>
         </div>
-
-        <div id="reportesContainer">
-            <p style="text-align:center; color:var(--text-muted);">No se han realizado cortes de semana todavía.</p>
+        
+        <div class="table-card" style="border-left: 4px solid #1e3c72;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Fecha de Cierre (Corte)</th>
+                        <th>Periodo Abarcado</th>
+                        <th>Total de Viajes</th>
+                        <th>Ingreso Bruto del Corte</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="cortesBody">
+                    <tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Cargando archivo histórico...</td></tr>
+                </tbody>
+            </table>
         </div>
     </main>
 
-    <!-- NUEVO: Ventana Emergente (Modal) para el Reporte Detallado del Cliente con opción de PDF -->
-    <div id="clienteModal" class="modal">
-        <div class="modal-content" style="max-width: 650px; text-align: left;">
+    <!-- VENTANA EMERGENTE (MODAL) - LISTA DE CLIENTES DEL CORTE -->
+    <div id="clientesCorteModal" class="modal">
+        <div class="modal-content" style="max-width: 800px; text-align: left;">
+            <h3 id="modalPeriodoTitulo" style="color: #1e3c72; margin-bottom: 5px;">Facturación del Corte</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">Lista de clientes que tuvieron actividad en esta semana:</p>
             
-            <!-- Contenedor limpio que se convertirá en PDF (Excluye los botones de acción) -->
-            <div id="pdfWrapper" style="padding: 15px; background: #ffffff;">
-                <!-- Encabezado del PDF -->
-                <div style="border-bottom: 2px solid #1e3c72; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h2 style="color: #1e3c72; margin: 0; font-size: 1.6rem;">Te lo llevo 🏍️</h2>
-                        <small style="color: #64748b;">Comprobante Oficial de Envíos</small>
-                    </div>
-                    <div style="text-align: right;">
-                        <span style="font-size: 0.85rem; font-weight: bold; color: #1e3c72;">REPORTE CORPORATIVO</span>
-                    </div>
-                </div>
-
-                <h3 id="modalClienteNombre" style="color: #1e3c72; margin-bottom: 5px;"></h3>
-                <p id="modalClientePeriodo" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;"></p>
-                <div id="areaImprimible">
-                <div style="max-height: 50vh; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding-right: 5px;">
-                    <table class="data-table" style="margin-top: 0; width: 100%;">
-                        <thead>
-                            <tr>
-                                <th style="background-color: #f1f5f9; padding: 10px;">Fecha y Hora</th>
-                                <th style="background-color: #f1f5f9; padding: 10px;">Mercancía / Detalle</th>
-                                <th style="background-color: #f1f5f9; padding: 10px; text-align: right;">Precio</th>
-                            </tr>
-                        </thead>
-                        <tbody id="modalClienteTablaBody"></tbody>
-                    </table>
-                </div>
-                </div>
-
-                
-                <div style="margin-top: 1.5rem; text-align: right; font-size: 1.2rem; border-top: 2px dashed #cbd5e1; padding-top: 10px;">
-                    <strong>Total General Acumulado: <span id="modalClienteTotal" style="color: var(--success-green);"></span></strong>
-                </div>
+            <div style="max-height: 50vh; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px;">
+                <table class="data-table" style="margin-top: 0; width: 100%;">
+                    <thead>
+                        <tr>
+                            <th style="padding: 10px;">Cliente</th>
+                            <th style="padding: 10px; text-align: center;">Envíos</th>
+                            <th style="padding: 10px; text-align: right;">Total a Cobrar</th>
+                            <th style="padding: 10px; text-align: center;">Factura</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalClientesTablaBody"></tbody>
+                </table>
             </div>
             
-            <!-- Botones de control fuera del área del PDF -->
-           
-            <div style="display: flex; gap: 10px; margin-top: 1rem; padding: 0 15px;">
-                <button id="btnDescargarPDF" class="btn-primary" style="background: var(--success-green); flex: 1;">📥 Descargar PDF en PC</button>
-                <button id="btnCerrarClienteModal" class="btn-primary" style="background: #64748b; width: 120px;">Cerrar</button>
-            </div>
+            <button id="btnCerrarClientesCorte" class="btn-primary" style="margin-top: 1.5rem; background: #64748b; width: 100%;">Volver a Reportes</button>
         </div>
     </div>
 
-    <!-- MODAL DE PROTECCIÓN: Confirmación de contraseña para vaciar reportes -->
-    <div id="borrarModal" class="modal">
-        <div class="modal-content">
-            <h3 style="color: var(--accent-red);">⚠️ Advertencia de Seguridad Crítica</h3>
-            <p style="margin-top: 0.5rem; font-size: 0.95rem; color: var(--text-dark);">Esta acción destruirá de forma permanente todos los cierres de nóminas y reportes históricos en Firebase. Escribe la contraseña maestra:</p>
-            <input type="password" id="borrarPassword" class="form-control" placeholder="Contraseña de Seguridad" style="margin: 1.2rem 0;">
-            <button id="btnConfirmarBorrado" class="btn-primary" style="background: var(--accent-red);">Confirmar Eliminación Completa</button>
-            <button id="btnCancelarBorrado" class="btn-primary" style="background: #64748b; margin-top: 0.5rem;">Cancelar Operación</button>
+    <!-- VENTANA EMERGENTE (MODAL) - VISTA PREVIA DETALLADA DEL CLIENTE (OPCIONAL) -->
+    <div id="detalleClienteModal" class="modal" style="z-index: 1001;">
+        <div class="modal-content" style="max-width: 650px;">
+            <h3 id="detalleNombreCliente" style="color: #1e3c72; margin-bottom: 15px;"></h3>
+            <div style="max-height: 40vh; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+                <table class="data-table" style="margin-top: 0; width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Fecha y Hora</th>
+                            <th>Detalle / Paquetes</th>
+                            <th style="text-align: right;">Precio</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detalleClienteBody"></tbody>
+                </table>
+            </div>
+            <button id="btnCerrarDetalle" class="btn-primary" style="margin-top: 1.5rem; background: #64748b; width: 100%;">Cerrar Detalles</button>
         </div>
     </div>
 
-    <div id="ticketPrintArea" class="ticket-print-hidden"></div>
+    <!-- CONTENEDOR OCULTO PARA LA FACTURA PROFESIONAL -->
+    <div id="zonaFactura"></div>
 
+    <footer><p>Te lo llevo © 2026</p></footer>
+
+    <script type="module">
+        import { auth, onAuthStateChanged } from "./firebase-config.js";
+        onAuthStateChanged(auth, (user) => { if (!user) window.location.href = "login.html"; });
+    </script>
 
     <script type="module">
         import { db, collection, getDocs } from "./firebase-config.js";
-        // Importamos métodos nativos necesarios de Firestore para barrer registros
-        import { deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        let baseDatosCortesMemory = {};
-        let clienteNombreActualParaPDF = "Cliente"; // Variable auxiliar para renombrar el archivo descargado
+        // Variables de memoria
+        let historialCortes = [];
 
-        const container = document.getElementById('reportesContainer');
-        const btnAbrirBorrado = document.getElementById('btnAbrirBorrado');
-        const borrarModal = document.getElementById('borrarModal');
-        const borrarPassword = document.getElementById('borrarPassword');
-        const btnConfirmarBorrado = document.getElementById('btnConfirmarBorrado');
-        const btnCancelarBorrado = document.getElementById('btnCancelarBorrado');
+        async function cargarHistorialCortes() {
+            try {
+                // Descargar toda la colección permanente "cortes_semanales"
+                const snapCortes = await getDocs(collection(db, "cortes_semanales"));
+                historialCortes = [];
 
-        async function cargarReportes() {
-            const snap = await getDocs(collection(db, "cortes_semanales"));
-            if(snap.empty) {
-                container.innerHTML = '<p style="text-align:center; color:var(--text-muted);">No se han realizado cortes de semana todavía.</p>';
-                return;
-            }
-            container.innerHTML = '';
-
-            snap.forEach(docSnap => {
-                const corte = docSnap.data();
-                const block = document.createElement('div');
-                block.className = 'report-block';
-
-                baseDatosCortesMemory[docSnap.id] = corte.pedidos;
-
-                const empData = {};
-                const cliData = {};
-
-                corte.pedidos.forEach(p => {
-                    if(!empData[p.id_empleado]) {
-                        empData[p.id_empleado] = { nombre: p.nombre_empleado || p.id_empleado, viajes: 0, bruto: 0 };
-                    }
-                    empData[p.id_empleado].viajes += 1;
-                    empData[p.id_empleado].bruto += parseFloat(p.precio || 0);
-
-                    if(!cliData[p.id_cliente]) {
-                        cliData[p.id_cliente] = { nombre: p.nombre_cliente || p.id_cliente, viajes: 0, acumulado: 0 };
-                    }
-                    cliData[p.id_cliente].viajes += 1;
-                    cliData[p.id_cliente].acumulado += parseFloat(p.precio || 0);
+                snapCortes.forEach(doc => {
+                    historialCortes.push({ id_firestore: doc.id, ...doc.data() });
                 });
 
-                const estampadoTiempo = corte.fecha_corte || "Fecha no especificada";
+                // Ordenar del corte más reciente al más antiguo
+                historialCortes.sort((a, b) => new Date(b.fecha_corte) - new Date(a.fecha_corte));
 
-                let htmlContent = `
-                    <div class="report-header-title">
-                        📋 Nómina - Período: Semanal del ${corte.periodo}
-                        <br><span style="font-size:0.85rem; font-weight:normal; opacity:0.85;">Procesado el: ${estampadoTiempo}</span>
-                    </div>
-                    
-                    <h4>🛵 Resumen de Liquidación a Mensajeros</h4>
-                    <table class="data-table" style="margin-bottom:1.5rem;">
-                        <thead>
-                            <tr>
-                                <th>Mensajero</th>
-                                <th>Viajes</th>
-                                <th>Sueldo Bruto</th>
-                                <th>Descuento (RD$50xV)</th>
-                                <th>Sueldo Neto</th>
-                                <th>Factura</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
+                const tbody = document.getElementById('cortesBody');
+                tbody.innerHTML = '';
 
-                for(let k in empData) {
-                    const e = empData[k];
-                    const descuento = e.viajes * 50;
-                    const neto = e.bruto - descuento;
-                    
-                    const tktData = { 
-                        periodo: corte.periodo, 
-                        id: k, 
-                        nombre: e.nombre, 
-                        viajes: e.viajes, 
-                        bruto: e.bruto.toFixed(2), 
-                        descuento: descuento.toFixed(2), 
-                        neto: neto.toFixed(2),
-                        procesado: estampadoTiempo
-                    };
+                historialCortes.forEach((corte, index) => {
+                    // Calculamos los totales del corte
+                    let totalViajes = corte.pedidos ? corte.pedidos.length : 0;
+                    let totalBruto = 0;
+                    if(corte.pedidos) {
+                        corte.pedidos.forEach(p => totalBruto += parseFloat(p.precio || 0));
+                    }
 
-                    htmlContent += `
+                    tbody.innerHTML += `
                         <tr>
-                            <td><strong>${e.nombre}</strong></td>
-                            <td>${e.viajes} envíos</td>
-                            <td>RD$ ${e.bruto.toFixed(2)}</td>
-                            <td style="color:var(--accent-red);">- RD$ ${descuento.toFixed(2)}</td>
-                            <td style="color:var(--success-green); font-weight:bold;">RD$ ${neto.toFixed(2)}</td>
-                            <td><button class="action-btn btn-print" data-ticket='${JSON.stringify(tktData)}'>🖨️ Ticket 55mm</button></td>
-                        </tr>
-                    `;
-                }
-
-                htmlContent += `</tbody></table><h4>👥 Resumen de Facturación Clientes (Haz clic en un cliente para ver detalles)</h4><table class="data-table"><thead><tr><th>Cliente</th><th>Viajes Recibidos</th><th>Balance Acumulado</th></tr></thead><tbody>`;
-
-                for(let c in cliData) {
-                    const cl = cliData[c];
-                    htmlContent += `
-                        <tr>
+                            <td><strong>${corte.fecha_corte || '---'}</strong></td>
+                            <td><span class="badge" style="background-color:#e2e8f0; color:#334155;">${corte.periodo}</span></td>
+                            <td style="text-align: center;">${totalViajes}</td>
+                            <td style="color:var(--success-green); font-weight:bold;">RD$ ${totalBruto.toFixed(2)}</td>
                             <td>
-                                <span class="link-cliente-detalle" data-corte-id="${docSnap.id}" data-cliente-id="${c}" data-cliente-nombre="${cl.nombre}" data-periodo="${corte.periodo}" style="cursor:pointer; color:#1e3c72; text-decoration:underline; font-weight:600;">
-                                    ${cl.nombre}
-                                </span>
+                                <button class="btn-primary btn-ver-corte" data-index="${index}" style="padding: 6px 12px; font-size: 0.85rem;">
+                                    📁 Ver Facturación
+                                </button>
                             </td>
-                            <td>${cl.viajes} envíos</td>
-                            <td><strong>RD$ ${cl.acumulado.toFixed(2)}</strong></td>
                         </tr>
                     `;
+                });
+
+                if (historialCortes.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay cortes semanales archivados.</td></tr>';
                 }
 
-                htmlContent += `</tbody></table>`;
-                block.innerHTML = htmlContent;
-                container.appendChild(block);
-            });
+                asignarEventosVerCorte();
 
-            // Evento Click para abrir reporte detallado de un Cliente
-            document.querySelectorAll('.link-cliente-detalle').forEach(link => {
-                link.addEventListener('click', (e) => {
-                    const corteId = e.currentTarget.getAttribute('data-corte-id');
-                    const clienteId = e.currentTarget.getAttribute('data-cliente-id');
-                    const clienteNombre = e.currentTarget.getAttribute('data-cliente-nombre');
-                    const periodo = e.currentTarget.getAttribute('data-periodo');
+            } catch (error) {
+                console.error("Error al descargar archivo de cortes: ", error);
+            }
+        }
 
-                    clienteNombreActualParaPDF = clienteNombre.replace(/\s+/g, '_'); // Formatear nombre para el archivo
-
-                    const todosLosPedidosDelCorte = baseDatosCortesMemory[corteId] || [];
-                    const pedidosFiltrados = todosLosPedidosDelCorte.filter(p => p.id_cliente === clienteId);
-
-                    document.getElementById('modalClienteNombre').textContent = `Cliente: ${clienteNombre}`;
-                    document.getElementById('modalClientePeriodo').textContent = `Historial consolidado del rango: ${periodo}`;
+        function asignarEventosVerCorte() {
+            document.querySelectorAll('.btn-ver-corte').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = e.currentTarget.getAttribute('data-index');
+                    const corte = historialCortes[index];
                     
-                    const modalBody = document.getElementById('modalClienteTablaBody');
-                    modalBody.innerHTML = '';
-                    let cuentaTotal = 0;
+                    document.getElementById('modalPeriodoTitulo').textContent = `Facturación: ${corte.periodo}`;
 
-                    pedidosFiltrados.forEach(p => {
-                        cuentaTotal += parseFloat(p.precio || 0);
-                        const fechaMostrar = p.fecha_hora_pedido || "Sin registro cronológico";
-                        
-                        modalBody.innerHTML += `
-                            <tr>
-                                <td style="padding: 8px 10px;">${fechaMostrar}</td>
-                                <td style="padding: 8px 10px;"><strong>${p.detalle_pedido}</strong></td>
-                                <td style="padding: 8px 10px; text-align: right; font-weight: 600;">RD$ ${parseFloat(p.precio).toFixed(2)}</td>
-                            </tr>
-                        `;
+                    // Agrupar los pedidos de ESTE corte específico por Cliente
+                    const clientesAgrupados = {};
+                    corte.pedidos.forEach(pedido => {
+                        const idCli = pedido.id_cliente;
+                        if (!clientesAgrupados[idCli]) {
+                            clientesAgrupados[idCli] = { 
+                                nombre: pedido.nombre_cliente, 
+                                viajes: 0, 
+                                total: 0, 
+                                historial: [] 
+                            };
+                        }
+                        clientesAgrupados[idCli].viajes += 1;
+                        clientesAgrupados[idCli].total += parseFloat(pedido.precio || 0);
+                        clientesAgrupados[idCli].historial.push(pedido);
                     });
 
-                    document.getElementById('modalClienteTotal').textContent = `RD$ ${cuentaTotal.toFixed(2)}`;
-                    document.getElementById('clienteModal').style.display = 'flex';
-                });
-            });
+                    const tbodyClientes = document.getElementById('modalClientesTablaBody');
+                    tbodyClientes.innerHTML = '';
 
-            // Tickets térmicos de 55mm
-            document.querySelectorAll('.btn-print').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const t = JSON.parse(e.target.getAttribute('data-ticket'));
-                    const printArea = document.getElementById('ticketPrintArea');
-                    printArea.className = "ticket-print-area";
-                    printArea.innerHTML = `
-------------------------
-      TE LO LLEVO V2    
-   Servicio de Motores  
-------------------------
-PERIODO: \n${t.periodo}
-------------------------
-MENSAJERO:\n${t.nombre} (${t.id})
-------------------------
-VIAJES REALIZADOS: ${t.viajes}
-------------------------
-SUELDO BRUTO:\nRD$ ${t.bruto}\n\nDESCUENTO OPERATIVO:\n-RD$ ${t.descuento} (RD$50xV)
-------------------------
-SUELDO NETO A PAGAR:\nRD$ ${t.neto}
-------------------------
-Firma Conforme:\n\n\n________________________\nPROCESADO:\n${t.procesado}\n------------------------\n¡Eficiencia sobre ruedas!\n------------------------`;
-                    window.print();
-                    printArea.className = "ticket-print-hidden";
-                    printArea.innerHTML = "";
+                    for (let idCliente in clientesAgrupados) {
+                        const datosCliente = clientesAgrupados[idCliente];
+                        
+                        // Guardamos el JSON de su historial en un atributo para poder imprimirlo
+                        const historialString = encodeURIComponent(JSON.stringify(datosCliente.historial));
+
+                        tbodyClientes.innerHTML += `
+                            <tr>
+                                <td style="padding: 10px;">
+                                    <strong style="color:#1e3c72;">${datosCliente.nombre}</strong><br>
+                                    <span style="font-size:0.8rem; color:var(--text-muted); cursor:pointer; text-decoration:underline;" class="link-ver-detalles" data-nombre="${datosCliente.nombre}" data-historial="${historialString}">Ver detalles de rutas</span>
+                                </td>
+                                <td style="padding: 10px; text-align: center;">${datosCliente.viajes}</td>
+                                <td style="padding: 10px; text-align: right; font-weight: 600; color:#1e3c72;">RD$ ${datosCliente.total.toFixed(2)}</td>
+                                <td style="padding: 10px; text-align: center;">
+                                    <button class="btn-imprimir-factura" data-nombre="${datosCliente.nombre}" data-fecha="${corte.fecha_corte}" data-historial="${historialString}" data-total="${datosCliente.total}" style="background-color: var(--success-green); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                        🖨️ Imprimir
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }
+
+                    if (Object.keys(clientesAgrupados).length === 0) {
+                        tbodyClientes.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 15px;">Este corte no contiene datos válidos.</td></tr>';
+                    }
+
+                    // Asignar eventos de impresión dentro de la ventana
+                    asignarEventosImpresion();
+                    asignarEventosDetalles();
+
+                    document.getElementById('clientesCorteModal').style.display = 'flex';
                 });
             });
         }
 
-        // NUEVO: EJECUCIÓN DE CONVERSIÓN Y DESCARGA AUTOMÁTICA A PDF (LADO CLIENTE)
-// ==========================================================================
-// SOLUCIÓN AL PDF EN BLANCO: GENERADOR POR CLONACIÓN INVISIBLE
-// ==========================================================================
-document.getElementById('btnDescargarPDF').addEventListener('click', () => {
-    const contenedorOriginal = document.getElementById('pdfWrapper');
-    
-    // 1. Creamos un clon exacto del reporte para no alterar lo que el usuario ve en pantalla
-    const clonInvisible = contenedorOriginal.cloneNode(true);
-    
-    // 2. Buscamos el contenedor de la tabla dentro del clon y le rompemos el límite de scroll
-    // Esto asegura que si la tabla es larga, el PDF se expanda automáticamente y no salga cortado
-    const tablaScroll = clonInvisible.querySelector('div[style*="overflow-y"]');
-    if (tablaScroll) {
-        tablaScroll.style.maxHeight = 'none';
-        tablaScroll.style.overflowY = 'visible';
-    }
-    
-    // 3. Posicionamos el clon completamente fuera de la pantalla para que el usuario no lo note
-    clonInvisible.style.position = 'absolute';
-    clonInvisible.style.left = '-9999px';
-    clonInvisible.style.top = '0';
-    clonInvisible.style.width = '7.5in'; // Forzamos el ancho estándar de una hoja carta (8.5 pulg. menos márgenes)
-    clonInvisible.style.background = '#ffffff';
-    
-    // 4. Lo inyectamos temporalmente al cuerpo del documento
-    document.body.appendChild(clonInvisible);
-    
-    // Configuración optimizada de renderizado gráfico
-    const configuracionPdf = {
-        margin:       0.5,
-        filename:     `Reporte_Envios_${clienteNombreActualParaPDF}_2026.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { 
-            scale: 2,         // Doble resolución para que las letras no salgan borrosas
-            useCORS: true,    // Evita bloqueos de seguridad de imágenes
-            logging: false    // Limpia la consola de mensajes basura
-        },
-        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-    };
+        // Lógica visual para la ventana de "Ver detalles de rutas" (Sin PDF)
+        function asignarEventosDetalles() {
+            document.querySelectorAll('.link-ver-detalles').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const nombre = e.currentTarget.getAttribute('data-nombre');
+                    const historial = JSON.parse(decodeURIComponent(e.currentTarget.getAttribute('data-historial')));
+                    
+                    document.getElementById('detalleNombreCliente').textContent = `Rutas de: ${nombre}`;
+                    const tbody = document.getElementById('detalleClienteBody');
+                    tbody.innerHTML = '';
+                    
+                    historial.forEach(pedido => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${pedido.fecha_hora_pedido || '---'}</td>
+                                <td>${pedido.detalle_pedido}</td>
+                                <td style="text-align: right; font-weight:bold;">RD$ ${parseFloat(pedido.precio).toFixed(2)}</td>
+                            </tr>
+                        `;
+                    });
 
-    // 5. Ordenamos a la librería procesar el clon limpio y libre de flexbox
-    html2pdf().set(configuracionPdf).from(clonInvisible).save().then(() => {
-        // 6. ¡Éxito! Una vez descargado en la PC, destruimos el clon para no dejar basura en el HTML
-        document.body.removeChild(clonInvisible);
-    }).catch((error) => {
-        alert("Error al generar el documento PDF: " + error.message);
-    });
-});
+                    document.getElementById('detalleClienteModal').style.display = 'flex';
+                });
+            });
+        }
 
-//------------------------------------------
+        // 🖨️ LÓGICA DE IMPRESIÓN DIRECTA
+        function asignarEventosImpresion() {
+            document.querySelectorAll('.btn-imprimir-factura').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const nombreCliente = e.currentTarget.getAttribute('data-nombre');
+                    const fechaCorte = e.currentTarget.getAttribute('data-fecha').split(',')[0]; // Tomar solo la fecha, sin la hora
+                    const totalFactura = parseFloat(e.currentTarget.getAttribute('data-total'));
+                    const ordenes = JSON.parse(decodeURIComponent(e.currentTarget.getAttribute('data-historial')));
 
-function descargarPDF() {
-    // 1. Captura el elemento correcto que tiene los datos
-    const elemento = document.getElementById('areaImprimible'); 
-    
-    if(!elemento) {
-        alert("Error: No se encontró el contenedor del reporte.");
-        return;
-    }
+                    let filasFacturaHTML = '';
+                    ordenes.forEach(pedido => {
+                        filasFacturaHTML += `
+                            <tr>
+                                <td>${pedido.fecha_hora_pedido || '---'}</td>
+                                <td>${pedido.detalle_pedido}</td>
+                                <td style="text-align: right;">RD$ ${parseFloat(pedido.precio).toFixed(2)}</td>
+                            </tr>
+                        `;
+                    });
 
-    // 2. Configuración avanzada para evitar hojas en blanco
-    const opciones = {
-        margin:       0.5,
-        filename:     'Reporte_Semanal.pdf',
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { 
-            scale: 2,             // Mejora la resolución del texto
-            useCORS: true,        // Permite cargar imágenes/logos externos si los hay
-            scrollY: 0            // Evita que el scroll actual del usuario corte el PDF
-        },
-        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-    };
+                    // Renderizar plantilla de la factura
+                    const zonaFactura = document.getElementById('zonaFactura');
+                    zonaFactura.innerHTML = `
+                        <div class="factura-header">
+                            <h1>TE LO LLEVO</h1>
+                            <p style="margin: 5px 0 0 0; color: #333;">Servicios Especializados de Mensajería</p>
+                        </div>
+                        
+                        <div class="factura-meta">
+                            <div><p style="margin:0;"><strong>Cliente:</strong> ${nombreCliente}</p></div>
+                            <div><p style="margin:0;"><strong>Fecha de Facturación:</strong> ${fechaCorte}</p></div>
+                        </div>
 
-    // 3. Ejecutar la conversión limpia
-    html2pdf().set(opciones).from(elemento).save();
-}
+                        <table class="factura-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha del Servicio</th>
+                                    <th>Lista de Paquetes / Mercancía</th>
+                                    <th style="text-align: right;">Precio</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${filasFacturaHTML}
+                            </tbody>
+                        </table>
 
-//------------------------------------
+                        <div class="factura-total">
+                            Total a Pagar: RD$ ${totalFactura.toFixed(2)}
+                        </div>
+                    `;
 
+                    window.print();
+                });
+            });
+        }
 
-        // Eventos del Modal de Cliente
-        const clModal = document.getElementById('clienteModal');
-        document.getElementById('btnCerrarClienteModal').addEventListener('click', () => clModal.style.display = 'none');
+        // Cierre de Modales
+        const modalClientes = document.getElementById('clientesCorteModal');
+        const modalDetalles = document.getElementById('detalleClienteModal');
 
-        // Control de Modal de Borrado Protegido
-        btnAbrirBorrado.addEventListener('click', () => { borrarModal.style.display = 'flex'; borrarPassword.value = ''; borrarPassword.focus(); });
-        btnCancelarBorrado.addEventListener('click', () => borrarModal.style.display = 'none');
-
-        btnConfirmarBorrado.addEventListener('click', async () => {
-            if (borrarPassword.value !== "te_lo_llevo_2026") {
-                alert("❌ Contraseña incorrecta corporativa. Operación abortada.");
-                return;
-            }
-
-            if (confirm("🚨 ATENCIÓN: Estás a punto de vaciar de forma irreversible todo el historial. ¿Proceder?")) {
-                try {
-                    const snap = await getDocs(collection(db, "cortes_semanales"));
-                    for (let docSnap of snap.docs) {
-                        await deleteDoc(doc(db, "cortes_semanales", docSnap.id));
-                    }
-                    alert("🗑️ Historial de reportes completamente eliminado.");
-                    borrarModal.style.display = 'none';
-                    await cargarReportes();
-                } catch (error) {
-                    alert("Error crítico de Firebase: " + error.message);
-                }
-            }
-        });
+        document.getElementById('btnCerrarClientesCorte').addEventListener('click', () => modalClientes.style.display = 'none');
+        document.getElementById('btnCerrarDetalle').addEventListener('click', () => modalDetalles.style.display = 'none');
 
         window.addEventListener('click', (e) => { 
-            if (e.target === clModal) clModal.style.display = 'none'; 
-            if (e.target === borrarModal) borrarModal.style.display = 'none'; 
+            if (e.target === modalClientes) modalClientes.style.display = 'none'; 
+            if (e.target === modalDetalles) modalDetalles.style.display = 'none'; 
         });
 
-        document.addEventListener('DOMContentLoaded', cargarReportes);
+        document.addEventListener('DOMContentLoaded', cargarHistorialCortes);
     </script>
 </body>
 </html>
