@@ -17,8 +17,6 @@ const inputMontoAdicional = document.getElementById('montoAdicional');
 
 const tablaPendientes = document.getElementById('tablaPendientes');
 const tablaEntregados = document.getElementById('tablaEntregados');
-
-// NUEVO: Captura del buscador
 const buscadorPedidos = document.getElementById('buscadorPedidos');
 
 const btnCorteNomina = document.getElementById('btnCorteNomina');
@@ -27,8 +25,11 @@ const cortePassword = document.getElementById('cortePassword');
 const btnEjecutarCorte = document.getElementById('btnEjecutarCorte');
 const btnCancelarCorte = document.getElementById('btnCancelarCorte');
 
+// MODIFICADO: Nueva estructura tarifaria para tramos cortos
 function calcularPrecio(dist) {
     if (dist < 0) return 0;
+    if (dist <= 1) return 100; // NUEVO: 1 KM = RD$ 100.00
+    if (dist <= 2) return 150; // NUEVO: 2 KM = RD$ 150.00
     if (dist <= 5) return 200;
     if (dist <= 8) return 250;
     if (dist <= 11) return 300;
@@ -118,16 +119,13 @@ async function cargarTablas() {
     try {
         const snap = await getDocs(query(collection(db, "pedidos"), where("valido", "==", true)));
         
-        // 1. Extraer los datos a un arreglo nativo
         let listaPedidos = [];
         snap.forEach(docSnap => {
             listaPedidos.push({ id_firestore: docSnap.id, ...docSnap.data() });
         });
 
-        // 2. NUEVO: Ordenar por creación cronológica (Más recientes primero)
         listaPedidos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
         
-        // 3. Renderizar las filas ya ordenadas
         listaPedidos.forEach(d => {
             const tr = document.createElement('tr');
             const clienteMuestra = d.nombre_cliente || d.id_cliente;
@@ -166,12 +164,10 @@ async function cargarTablas() {
             }
         });
 
-        // Reconectar los eventos a los botones después del ordenamiento
         document.querySelectorAll('.change-status').forEach(select => {
             select.addEventListener('change', async (e) => {
                 await updateDoc(doc(db, "pedidos", e.target.getAttribute('data-id')), { estatus: e.target.value });
                 cargarTablas();
-                // Limpia el buscador si había algo escrito para no perder resultados
                 if(buscadorPedidos) buscadorPedidos.value = '';
             });
         });
@@ -187,20 +183,17 @@ async function cargarTablas() {
     } catch (error) { console.error("Error al renderizar paneles: ", error); }
 }
 
-// NUEVO: Lógica de búsqueda dinámica "Contains" sobre las tablas visibles
 if (buscadorPedidos) {
     buscadorPedidos.addEventListener('input', (e) => {
         const termino = e.target.value.toLowerCase();
-        // Atrapa todas las filas de ambas tablas al mismo tiempo
         const filas = document.querySelectorAll('#tablaPendientes tr, #tablaEntregados tr');
         
         filas.forEach(fila => {
-            // El innerText atrapa todo el contenido textual (Cliente, ID, Fecha, Precio...)
             const textoFila = fila.innerText.toLowerCase();
             if (textoFila.includes(termino)) {
-                fila.style.display = ''; // Lo deja visible si hay coincidencia
+                fila.style.display = '';
             } else {
-                fila.style.display = 'none'; // Lo esconde de la vista si no coincide
+                fila.style.display = 'none';
             }
         });
     });
@@ -261,7 +254,6 @@ form.addEventListener('submit', async (e) => {
         cantPaquetesGroup.style.display = "none";
         montoAdicionalGroup.style.display = "none";
         
-        // Refrescar y limpiar búsqueda
         await cargarTablas();
         if(buscadorPedidos) buscadorPedidos.value = '';
         
