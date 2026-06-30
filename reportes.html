@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Te lo llevo V2 - Reportes y Facturación Histórica</title>
+    <title>Te lo llevo V2 - Reportes, Facturación y Nómina</title>
     <link rel="stylesheet" href="styles.css">
     <style>
         /* ========================================================
-           🔥 MAGIA DE IMPRESIÓN PARA FACTURAS HISTÓRICAS
+           🔥 DISEÑO EXCLUSIVO PARA IMPRESIÓN (FACTURAS Y RECIBOS)
            ======================================================== */
         @media screen {
             #zonaFactura { display: none !important; }
@@ -21,17 +21,17 @@
                 left: 0;
                 top: 0;
                 width: 100%;
-                padding: 20px;
+                padding: 25px;
                 color: #000;
                 font-family: Arial, sans-serif;
             }
-            .factura-header { text-align: center; border-bottom: 2px solid #000; margin-bottom: 20px; padding-bottom: 10px; }
+            .factura-header { text-align: center; border-bottom: 2px solid #000; margin-bottom: 25px; padding-bottom: 10px; }
             .factura-header h1 { margin: 0; font-size: 28px; text-transform: uppercase; letter-spacing: 1px; }
-            .factura-meta { display: flex; justify-content: space-between; margin-bottom: 25px; font-size: 16px; }
+            .factura-meta { display: flex; justify-content: space-between; margin-bottom: 30px; font-size: 16px; line-height: 1.6; }
             .factura-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
             .factura-table th, .factura-table td { border: 1px solid #000; padding: 10px; text-align: left; font-size: 14px; }
-            .factura-table th { background-color: #f0f0f0 !important; -webkit-print-color-adjust: exact; font-weight: bold; }
-            .factura-total { text-align: right; font-size: 20px; font-weight: bold; border-top: 2px solid #000; padding-top: 15px; }
+            .factura-table th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; font-weight: bold; }
+            .factura-total-box { margin-top: 20px; border-top: 2px dashed #000; padding-top: 15px; font-size: 16px; line-height: 1.8; }
         }
     </style>
 </head>
@@ -54,7 +54,7 @@
     <main class="dashboard-container">
         <div style="margin-bottom:1.5rem;">
             <h2 class="page-title" style="margin-bottom: 0;">Archivo de Cortes Semanales</h2>
-            <p style="color:var(--text-muted); margin-top: 4px;">Historial de operaciones archivadas y generación de facturas de cobro por periodo.</p>
+            <p style="color:var(--text-muted); margin-top: 4px;">Historial contable permanente de operaciones, facturación de clientes y liquidación de nóminas.</p>
         </div>
         
         <div class="table-card" style="border-left: 4px solid #1e3c72;">
@@ -64,8 +64,8 @@
                         <th>Fecha de Cierre (Corte)</th>
                         <th>Periodo Abarcado</th>
                         <th>Total de Viajes</th>
-                        <th>Ingreso Bruto del Corte</th>
-                        <th>Acción</th>
+                        <th>Ingreso Bruto</th>
+                        <th>Módulos de Impresión</th>
                     </tr>
                 </thead>
                 <tbody id="cortesBody">
@@ -75,11 +75,10 @@
         </div>
     </main>
 
-    <!-- VENTANA EMERGENTE (MODAL) - LISTA DE CLIENTES DEL CORTE -->
     <div id="clientesCorteModal" class="modal">
         <div class="modal-content" style="max-width: 800px; text-align: left;">
             <h3 id="modalPeriodoTitulo" style="color: #1e3c72; margin-bottom: 5px;">Facturación del Corte</h3>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">Lista de clientes que tuvieron actividad en esta semana:</p>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">Lista de clientes agrupados en este periodo semanal:</p>
             
             <div style="max-height: 50vh; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px;">
                 <table class="data-table" style="margin-top: 0; width: 100%;">
@@ -88,19 +87,41 @@
                             <th style="padding: 10px;">Cliente</th>
                             <th style="padding: 10px; text-align: center;">Envíos</th>
                             <th style="padding: 10px; text-align: right;">Total a Cobrar</th>
-                            <th style="padding: 10px; text-align: center;">Factura</th>
+                            <th style="padding: 10px; text-align: center;">Acción</th>
                         </tr>
                     </thead>
                     <tbody id="modalClientesTablaBody"></tbody>
                 </table>
             </div>
-            
             <button id="btnCerrarClientesCorte" class="btn-primary" style="margin-top: 1.5rem; background: #64748b; width: 100%;">Volver a Reportes</button>
         </div>
     </div>
 
-    <!-- VENTANA EMERGENTE (MODAL) - VISTA PREVIA DETALLADA DEL CLIENTE (OPCIONAL) -->
-    <div id="detalleClienteModal" class="modal" style="z-index: 1001;">
+    <div id="nominaCorteModal" class="modal">
+        <div class="modal-content" style="max-width: 850px; text-align: left;">
+            <h3 id="modalNominaTitulo" style="color: #1e3c72; margin-bottom: 5px;">Liquidación de Nómina</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">Desglose de pagos netos calculados para los mensajeros en este periodo:</p>
+            
+            <div style="max-height: 50vh; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px;">
+                <table class="data-table" style="margin-top: 0; width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre Mensajero</th>
+                            <th style="text-align: center;">Viajes</th>
+                            <th style="text-align: right;">Sueldo Bruto</th>
+                            <th style="text-align: right; color: var(--success-green);">Sueldo Neto</th>
+                            <th style="text-align: center;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalNominaTablaBody"></tbody>
+                </table>
+            </div>
+            <button id="btnCerrarNominaCorte" class="btn-primary" style="margin-top: 1.5rem; background: #64748b; width: 100%;">Volver a Reportes</button>
+        </div>
+    </div>
+
+    <div id="detalleClienteModal" class="modal" style="z-index: 1002;">
         <div class="modal-content" style="max-width: 650px;">
             <h3 id="detalleNombreCliente" style="color: #1e3c72; margin-bottom: 15px;"></h3>
             <div style="max-height: 40vh; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
@@ -119,7 +140,6 @@
         </div>
     </div>
 
-    <!-- CONTENEDOR OCULTO PARA LA FACTURA PROFESIONAL -->
     <div id="zonaFactura"></div>
 
     <footer><p>Te lo llevo © 2026</p></footer>
@@ -132,12 +152,10 @@
     <script type="module">
         import { db, collection, getDocs } from "./firebase-config.js";
 
-        // Variables de memoria
         let historialCortes = [];
 
         async function cargarHistorialCortes() {
             try {
-                // Descargar toda la colección permanente "cortes_semanales"
                 const snapCortes = await getDocs(collection(db, "cortes_semanales"));
                 historialCortes = [];
 
@@ -145,14 +163,12 @@
                     historialCortes.push({ id_firestore: doc.id, ...doc.data() });
                 });
 
-                // Ordenar del corte más reciente al más antiguo
                 historialCortes.sort((a, b) => new Date(b.fecha_corte) - new Date(a.fecha_corte));
 
                 const tbody = document.getElementById('cortesBody');
                 tbody.innerHTML = '';
 
                 historialCortes.forEach((corte, index) => {
-                    // Calculamos los totales del corte
                     let totalViajes = corte.pedidos ? corte.pedidos.length : 0;
                     let totalBruto = 0;
                     if(corte.pedidos) {
@@ -166,8 +182,11 @@
                             <td style="text-align: center;">${totalViajes}</td>
                             <td style="color:var(--success-green); font-weight:bold;">RD$ ${totalBruto.toFixed(2)}</td>
                             <td>
-                                <button class="btn-primary btn-ver-corte" data-index="${index}" style="padding: 6px 12px; font-size: 0.85rem;">
-                                    📁 Ver Facturación
+                                <button class="btn-primary btn-ver-corte" data-index="${index}" style="padding: 6px 12px; font-size: 0.85rem; margin-right: 5px;">
+                                    📁 Clientes
+                                </button>
+                                <button class="btn-primary btn-ver-nomina" data-index="${index}" style="padding: 6px 12px; font-size: 0.85rem; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); border:none;">
+                                    📋 Nómina
                                 </button>
                             </td>
                         </tr>
@@ -178,14 +197,15 @@
                     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay cortes semanales archivados.</td></tr>';
                 }
 
-                asignarEventosVerCorte();
+                asignarEventosPaneles();
 
             } catch (error) {
                 console.error("Error al descargar archivo de cortes: ", error);
             }
         }
 
-        function asignarEventosVerCorte() {
+        function asignarEventosPaneles() {
+            // CONTROL PANEL 1: CLIENTES Y FACTURACIÓN
             document.querySelectorAll('.btn-ver-corte').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const index = e.currentTarget.getAttribute('data-index');
@@ -193,17 +213,11 @@
                     
                     document.getElementById('modalPeriodoTitulo').textContent = `Facturación: ${corte.periodo}`;
 
-                    // Agrupar los pedidos de ESTE corte específico por Cliente
                     const clientesAgrupados = {};
                     corte.pedidos.forEach(pedido => {
                         const idCli = pedido.id_cliente;
                         if (!clientesAgrupados[idCli]) {
-                            clientesAgrupados[idCli] = { 
-                                nombre: pedido.nombre_cliente, 
-                                viajes: 0, 
-                                total: 0, 
-                                historial: [] 
-                            };
+                            clientesAgrupados[idCli] = { nombre: pedido.nombre_cliente, viajes: 0, total: 0, historial: [] };
                         }
                         clientesAgrupados[idCli].viajes += 1;
                         clientesAgrupados[idCli].total += parseFloat(pedido.precio || 0);
@@ -215,8 +229,6 @@
 
                     for (let idCliente in clientesAgrupados) {
                         const datosCliente = clientesAgrupados[idCliente];
-                        
-                        // Guardamos el JSON de su historial en un atributo para poder imprimirlo
                         const historialString = encodeURIComponent(JSON.stringify(datosCliente.historial));
 
                         tbodyClientes.innerHTML += `
@@ -236,20 +248,69 @@
                         `;
                     }
 
-                    if (Object.keys(clientesAgrupados).length === 0) {
-                        tbodyClientes.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 15px;">Este corte no contiene datos válidos.</td></tr>';
+                    asignarEventosImpresionFactura();
+                    asignarEventosDetalles();
+                    document.getElementById('clientesCorteModal').style.display = 'flex';
+                });
+            });
+
+            // CONTROL PANEL 2: NÓMINA DE MENSAJEROS (NUEVO)
+            document.querySelectorAll('.btn-ver-nomina').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = e.currentTarget.getAttribute('data-index');
+                    const corte = historialCortes[index];
+                    
+                    document.getElementById('modalNominaTitulo').textContent = `Nómina del Periodo: ${corte.periodo}`;
+
+                    const empleadosAgrupados = {};
+                    corte.pedidos.forEach(pedido => {
+                        const idEmp = pedido.id_empleado;
+                        if (!empleadosAgrupados[idEmp]) {
+                            empleadosAgrupados[idEmp] = { 
+                                nombre: pedido.nombre_empleado || 'Mensajero', 
+                                viajes: 0, 
+                                bruto: 0 
+                            };
+                        }
+                        empleadosAgrupados[idEmp].viajes += 1;
+                        empleadosAgrupados[idEmp].bruto += parseFloat(pedido.precio || 0);
+                    });
+
+                    const tbodyNomina = document.getElementById('modalNominaTablaBody');
+                    tbodyNomina.innerHTML = '';
+
+                    for (let idEmpleado in empleadosAgrupados) {
+                        const emp = empleadosAgrupados[idEmpleado];
+                        // FÓRMULA SOLICITADA: Neto = Bruto - (Viajes * 50)
+                        const sueldoNeto = emp.bruto - (emp.viajes * 50);
+
+                        tbodyNomina.innerHTML += `
+                            <tr>
+                                <td><strong>${idEmpleado}</strong></td>
+                                <td><strong>${emp.nombre}</strong></td>
+                                <td style="text-align: center;"><span class="badge" style="background:#e2e8f0; color:#334155;">${emp.viajes} viajes</span></td>
+                                <td style="text-align: right; color:#64748b;">RD$ ${emp.bruto.toFixed(2)}</td>
+                                <td style="text-align: right; font-weight: bold; color: var(--success-green);">RD$ ${sueldoNeto.toFixed(2)}</td>
+                                <td style="text-align: center;">
+                                    <button class="btn-imprimir-recibo" data-id="${idEmpleado}" data-nombre="${emp.nombre}" data-viajes="${emp.viajes}" data-bruto="${emp.bruto}" data-neto="${sueldoNeto}" data-fecha="${corte.fecha_corte}" style="background-color: #1e3c72; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                        🖨️ Imprimir
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
                     }
 
-                    // Asignar eventos de impresión dentro de la ventana
-                    asignarEventosImpresion();
-                    asignarEventosDetalles();
+                    if (Object.keys(empleadosAgrupados).length === 0) {
+                        tbodyNomina.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 15px;">No hay datos de nómina en este corte.</td></tr>';
+                    }
 
-                    document.getElementById('clientesCorteModal').style.display = 'flex';
+                    asignarEventosImpresionNomina();
+                    document.getElementById('nominaCorteModal').style.display = 'flex';
                 });
             });
         }
 
-        // Lógica visual para la ventana de "Ver detalles de rutas" (Sin PDF)
+        // VISTA PREVIA DETALLADA DE HISTORIAL DE RUTAS (SOLO TEXTO)
         function asignarEventosDetalles() {
             document.querySelectorAll('.link-ver-detalles').forEach(link => {
                 link.addEventListener('click', (e) => {
@@ -269,18 +330,17 @@
                             </tr>
                         `;
                     });
-
                     document.getElementById('detalleClienteModal').style.display = 'flex';
                 });
             });
         }
 
-        // 🖨️ LÓGICA DE IMPRESIÓN DIRECTA
-        function asignarEventosImpresion() {
+        // 🖨️ IMPRESIÓN 1: FACTURA DE CLIENTES
+        function asignarEventosImpresionFactura() {
             document.querySelectorAll('.btn-imprimir-factura').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const nombreCliente = e.currentTarget.getAttribute('data-nombre');
-                    const fechaCorte = e.currentTarget.getAttribute('data-fecha').split(',')[0]; // Tomar solo la fecha, sin la hora
+                    const fechaCorte = e.currentTarget.getAttribute('data-fecha').split(',')[0];
                     const totalFactura = parseFloat(e.currentTarget.getAttribute('data-total'));
                     const ordenes = JSON.parse(decodeURIComponent(e.currentTarget.getAttribute('data-historial')));
 
@@ -295,37 +355,100 @@
                         `;
                     });
 
-                    // Renderizar plantilla de la factura
-                    const zonaFactura = document.getElementById('zonaFactura');
-                    zonaFactura.innerHTML = `
+                    document.getElementById('zonaFactura').innerHTML = `
                         <div class="factura-header">
                             <h1>TE LO LLEVO</h1>
                             <p style="margin: 5px 0 0 0; color: #333;">Servicios Especializados de Mensajería</p>
                         </div>
-                        
                         <div class="factura-meta">
                             <div><p style="margin:0;"><strong>Cliente:</strong> ${nombreCliente}</p></div>
-                            <div><p style="margin:0;"><strong>Fecha de Facturación:</strong> ${fechaCorte}</p></div>
+                            <div><p style="margin:0;"><strong>Fecha de Emisión:</strong> ${fechaCorte}</p></div>
+                        </div>
+                        <table class="factura-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Lista de Paquetes / Detalle</th>
+                                    <th style="text-align: right;">Precio</th>
+                                </tr>
+                            </thead>
+                            <tbody>${filasFacturaHTML}</tbody>
+                        </table>
+                        <div class="factura-total">Total a Pagar: RD$ ${totalFactura.toFixed(2)}</div>
+                    `;
+                    window.print();
+                });
+            });
+        }
+
+        // 🖨️ IMPRESIÓN 2: RECIBO DE NÓMINA DE EMPLEADO (NUEVO)
+        function asignarEventosImpresionNomina() {
+            document.querySelectorAll('.btn-imprimir-recibo').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const idEmpleado = e.currentTarget.getAttribute('data-id');
+                    const nombreEmpleado = e.currentTarget.getAttribute('data-nombre');
+                    const viajes = e.currentTarget.getAttribute('data-viajes');
+                    const bruto = parseFloat(e.currentTarget.getAttribute('data-bruto'));
+                    const neto = parseFloat(e.currentTarget.getAttribute('data-neto'));
+                    const fechaCorte = e.currentTarget.getAttribute('data-fecha').split(',')[0];
+
+                    const deducciones = bruto - neto;
+
+                    document.getElementById('zonaFactura').innerHTML = `
+                        <div class="factura-header">
+                            <h1>TE LO LLEVO</h1>
+                            <p style="margin: 5px 0 0 0; color: #333;">Recibo Oficial de Pago de Nómina</p>
+                        </div>
+                        
+                        <div class="factura-meta">
+                            <div>
+                                <p style="margin:0;"><strong>Empleado:</strong> ${nombreEmpleado}</p>
+                                <p style="margin:0;"><strong>Código ID:</strong> ${idEmpleado}</p>
+                            </div>
+                            <div style="text-align: right;">
+                                <p style="margin:0;"><strong>Fecha de Liquidación:</strong> ${fechaCorte}</p>
+                            </div>
                         </div>
 
                         <table class="factura-table">
                             <thead>
                                 <tr>
-                                    <th>Fecha del Servicio</th>
-                                    <th>Lista de Paquetes / Mercancía</th>
-                                    <th style="text-align: right;">Precio</th>
+                                    <th>Concepto Operativo</th>
+                                    <th style="text-align: center;">Cantidad</th>
+                                    <th style="text-align: right;">Monto</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${filasFacturaHTML}
+                                <tr>
+                                    <td>Producción Total por Envíos Entregados</td>
+                                    <td style="text-align: center;">${viajes} viajes</td>
+                                    <td style="text-align: right;">RD$ ${bruto.toFixed(2)}</td>
+                                </tr>
+                                <tr>
+                                    <td style="color: #c00;">Deducción por Servicios (RD$ 50.00 por viaje)</td>
+                                    <td style="text-align: center; color: #c00;">-${viajes}</td>
+                                    <td style="text-align: right; color: #c00;">-RD$ ${deducciones.toFixed(2)}</td>
+                                </tr>
                             </tbody>
                         </table>
 
-                        <div class="factura-total">
-                            Total a Pagar: RD$ ${totalFactura.toFixed(2)}
+                        <div class="factura-total-box">
+                            <p style="margin: 0;"><strong>Sueldo Bruto Acumulado:</strong> RD$ ${bruto.toFixed(2)}</p>
+                            <p style="margin: 0; color: #c00;"><strong>Total Descuento Aplicado:</strong> -RD$ ${deducciones.toFixed(2)}</p>
+                            <p style="margin: 5px 0 0 0; font-size: 20px; border-top: 1px solid #000; padding-top: 5px;">
+                                <strong>SUELDO NETO RECIBIDO: RD$ ${neto.toFixed(2)}</strong>
+                            </p>
+                        </div>
+
+                        <div style="margin-top: 80px; display: flex; justify-content: space-between;">
+                            <div style="width: 40%; border-top: 1px solid #000; text-align: center; font-size: 13px;">
+                                <p style="margin-top: 5px;">Firma del Operador / Administración</p>
+                            </div>
+                            <div style="width: 40%; border-top: 1px solid #000; text-align: center; font-size: 13px;">
+                                <p style="margin-top: 5px;">Firma de Conformidad Mensajero</p>
+                            </div>
                         </div>
                     `;
-
                     window.print();
                 });
             });
@@ -333,13 +456,16 @@
 
         // Cierre de Modales
         const modalClientes = document.getElementById('clientesCorteModal');
+        const modalNomina = document.getElementById('nominaCorteModal');
         const modalDetalles = document.getElementById('detalleClienteModal');
 
         document.getElementById('btnCerrarClientesCorte').addEventListener('click', () => modalClientes.style.display = 'none');
+        document.getElementById('btnCerrarNominaCorte').addEventListener('click', () => modalNomina.style.display = 'none');
         document.getElementById('btnCerrarDetalle').addEventListener('click', () => modalDetalles.style.display = 'none');
 
         window.addEventListener('click', (e) => { 
             if (e.target === modalClientes) modalClientes.style.display = 'none'; 
+            if (e.target === modalNomina) modalNomina.style.display = 'none'; 
             if (e.target === modalDetalles) modalDetalles.style.display = 'none'; 
         });
 
