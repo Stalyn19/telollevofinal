@@ -279,7 +279,7 @@ btnCancelarCorte.addEventListener('click', () => {
 // ------------------------------------------------------------
 
 btnEjecutarCorte.addEventListener('click', async () => {
-    if(cortePassword.value !== "te_lo_llevo_2026") { alert("Contraseña Maestra Inválida."); return; }
+    if(cortePassword.value !== "Luismanuel2709") { alert("Contraseña Maestra Inválida."); return; }
 
 // ... (y el resto sigue igual hasta el final del archivo)
 
