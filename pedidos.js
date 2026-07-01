@@ -2,6 +2,7 @@ import { db, collection, addDoc, getDocs, updateDoc, doc, query, where } from ".
 
 const form = document.getElementById('pedidoForm');
 const selectCliente = document.getElementById('idCliente');
+const inputDestinatario = document.getElementById('destinatario'); // NUEVA CAPTURA
 const selectEmpleado = document.getElementById('idEmpleado');
 const selectPedido = document.getElementById('pedidoSelect');
 const inputDistancia = document.getElementById('distancia');
@@ -25,11 +26,11 @@ const cortePassword = document.getElementById('cortePassword');
 const btnEjecutarCorte = document.getElementById('btnEjecutarCorte');
 const btnCancelarCorte = document.getElementById('btnCancelarCorte');
 
-// MODIFICADO: Nueva estructura tarifaria para tramos cortos
+// Matriz tarifaria con soporte para tramos cortos
 function calcularPrecio(dist) {
     if (dist < 0) return 0;
-    if (dist <= 1) return 100; // NUEVO: 1 KM = RD$ 100.00
-    if (dist <= 2) return 150; // NUEVO: 2 KM = RD$ 150.00
+    if (dist <= 1) return 100; 
+    if (dist <= 2) return 150; 
     if (dist <= 5) return 200;
     if (dist <= 8) return 250;
     if (dist <= 11) return 300;
@@ -45,7 +46,7 @@ function actualizarPrecioEnPantalla() {
     if(!isNaN(d)) {
         const precioBase = calcularPrecio(d);
         if (precioBase === -1) { 
-            inputPrecio.value = "ÁREA SIN COBERTURA"; 
+            inputPrecio.value = "FUERA DE COBERTURA"; 
             inputPrecio.style.color = "red";
             inputPrecio.style.fontWeight = "bold";
         } else { 
@@ -53,7 +54,6 @@ function actualizarPrecioEnPantalla() {
             if (selectPedido.value !== "") {
                 cargoAdicional = parseFloat(inputMontoAdicional.value) || 0;
             }
-            
             const precioFinal = precioBase + cargoAdicional;
             inputPrecio.value = precioFinal.toFixed(2); 
             inputPrecio.style.color = "inherit";
@@ -129,6 +129,7 @@ async function cargarTablas() {
         listaPedidos.forEach(d => {
             const tr = document.createElement('tr');
             const clienteMuestra = d.nombre_cliente || d.id_cliente;
+            const destinatarioMuestra = d.nombre_destinatario || '---'; // Se inyecta el destinatario
             const empleadoMuestra = d.nombre_empleado || d.id_empleado;
             const tiempoMuestra = d.fecha_hora_pedido || '---';
 
@@ -137,6 +138,7 @@ async function cargarTablas() {
                     <td><strong>${d.id_pedido}</strong></td>
                     <td style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">${tiempoMuestra}</td>
                     <td>${clienteMuestra}</td>
+                    <td><strong>${destinatarioMuestra}</strong></td>
                     <td>${empleadoMuestra}</td>
                     <td>${d.detalle_pedido}</td>
                     <td>RD$ ${parseFloat(d.precio).toFixed(2)}</td>
@@ -154,6 +156,7 @@ async function cargarTablas() {
                     <td><strong>${d.id_pedido}</strong></td>
                     <td style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">${tiempoMuestra}</td>
                     <td>${clienteMuestra}</td>
+                    <td><strong>${destinatarioMuestra}</strong></td>
                     <td>${empleadoMuestra}</td>
                     <td>${d.detalle_pedido}</td>
                     <td>RD$ ${parseFloat(d.precio).toFixed(2)}</td>
@@ -236,6 +239,7 @@ form.addEventListener('submit', async (e) => {
             id_pedido: 'PED-' + Math.floor(100000 + Math.random() * 900000),
             id_cliente: selectCliente.value,
             nombre_cliente: selectCliente.options[selectCliente.selectedIndex].text,
+            nombre_destinatario: inputDestinatario.value.trim(), // SE GUARDA EN FIREBASE
             id_empleado: selectEmpleado.value,
             nombre_empleado: selectEmpleado.options[selectEmpleado.selectedIndex].text,
             detalle_pedido: detalleFinal,
