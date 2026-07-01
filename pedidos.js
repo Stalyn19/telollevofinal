@@ -268,7 +268,7 @@ form.addEventListener('submit', async (e) => {
 });
 
 btnEjecutarCorte.addEventListener('click', async () => {
-    if(cortePassword.value !== "Luismanuel2709") { alert("Contraseña Maestra Inválida."); return; }
+    if(cortePassword.value !== "te_lo_llevo_2026") { alert("Contraseña Maestra Inválida."); return; }
 
     btnEjecutarCorte.disabled = true;
     btnEjecutarCorte.innerText = "Procesando... ⏳";
