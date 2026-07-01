@@ -102,17 +102,33 @@ if(selectPedido) {
     });
 }
 
+// Carga e indexación de listas desplegables maestros
 async function cargarSelectores() {
     try {
+        // Cargar Clientes Activos
         const snapC = await getDocs(query(collection(db, "clientes"), where("activo", "==", true)));
         selectCliente.innerHTML = '<option value="">-- Seleccione Cliente --</option>';
-        snapC.forEach(d => { selectCliente.innerHTML += `<option value="${d.data().id_auto}">${d.data().nombre}</option>`; });
+        snapC.forEach(d => { 
+            selectCliente.innerHTML += `<option value="${d.data().id_auto}">${d.data().nombre}</option>`; 
+        });
 
+        // Cargar Empleados Activos (Ocultando al Staff)
         const snapE = await getDocs(query(collection(db, "empleados"), where("activo", "==", true)));
         selectEmpleado.innerHTML = '<option value="">-- Seleccione Mensajero --</option>';
-        snapE.forEach(d => { selectEmpleado.innerHTML += `<option value="${d.data().id_auto}">${d.data().nombre} ${d.data().apellido}</option>`; });
-    } catch (error) { console.error("Error cargando listas: ", error); }
+        
+        snapE.forEach(d => { 
+            const empleado = d.data();
+            // LÓGICA DE FILTRADO: Si el tipo ES "Staff", lo ignora y no lo dibuja en la lista
+            if (empleado.tipo !== "Staff") {
+                selectEmpleado.innerHTML += `<option value="${empleado.id_auto}">${empleado.nombre} ${empleado.apellido}</option>`; 
+            }
+        });
+    } catch (error) { 
+        console.error("Error cargando listas: ", error); 
+    }
 }
+
+
 
 async function cargarTablas() {
     tablaPendientes.innerHTML = ''; tablaEntregados.innerHTML = '';
@@ -267,31 +283,7 @@ form.addEventListener('submit', async (e) => {
     }
 });
 
-// Carga e indexación de listas desplegables maestros
-async function cargarSelectores() {
-    try {
-        // Cargar Clientes Activos
-        const snapC = await getDocs(query(collection(db, "clientes"), where("activo", "==", true)));
-        selectCliente.innerHTML = '<option value="">-- Seleccione Cliente --</option>';
-        snapC.forEach(d => { 
-            selectCliente.innerHTML += `<option value="${d.data().id_auto}">${d.data().nombre}</option>`; 
-        });
 
-        // Cargar Empleados Activos (Ocultando al Staff)
-        const snapE = await getDocs(query(collection(db, "empleados"), where("activo", "==", true)));
-        selectEmpleado.innerHTML = '<option value="">-- Seleccione Mensajero --</option>';
-        
-        snapE.forEach(d => { 
-            const empleado = d.data();
-            // LÓGICA DE FILTRADO: Si el tipo ES "Staff", lo ignora y no lo dibuja en la lista
-            if (empleado.tipo !== "Staff") {
-                selectEmpleado.innerHTML += `<option value="${empleado.id_auto}">${empleado.nombre} ${empleado.apellido}</option>`; 
-            }
-        });
-    } catch (error) { 
-        console.error("Error cargando listas: ", error); 
-    }
-}
 
 // --- LÍNEAS RESTAURADAS: ABRIR Y CERRAR EL MODAL DE CORTE ---
 btnCorteNomina.addEventListener('click', () => { 
