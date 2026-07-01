@@ -267,8 +267,21 @@ form.addEventListener('submit', async (e) => {
     }
 });
 
+// --- LÍNEAS RESTAURADAS: ABRIR Y CERRAR EL MODAL DE CORTE ---
+btnCorteNomina.addEventListener('click', () => { 
+    corteModal.style.display = 'flex'; 
+    cortePassword.value = ''; 
+});
+
+btnCancelarCorte.addEventListener('click', () => { 
+    corteModal.style.display = 'none'; 
+});
+// ------------------------------------------------------------
+
 btnEjecutarCorte.addEventListener('click', async () => {
     if(cortePassword.value !== "te_lo_llevo_2026") { alert("Contraseña Maestra Inválida."); return; }
+
+// ... (y el resto sigue igual hasta el final del archivo)
 
     btnEjecutarCorte.disabled = true;
     btnEjecutarCorte.innerText = "Procesando... ⏳";
