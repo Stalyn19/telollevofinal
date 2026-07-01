@@ -2,102 +2,114 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Te lo llevo V2 - Empleados</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Te lo llevo V2 - Gestión de Empleados</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <header class="main-header">
-               <div class="logo">
-    <a href="index.html">
-        <img src="logo.png" alt="Te lo llevo Logo" class="logo-img">
-        <span class="logo-text">Te lo llevo</span>
-    </a>
-</div>
+        <div class="logo">
+            <a href="index.html">
+                <img src="logo.png" alt="Te lo llevo Logo" class="logo-img">
+                <span class="logo-text">Te lo llevo</span>
+            </a>
+        </div>
         <nav class="nav-menu">
+            <a href="index.html">Panel</a>
             <a href="pedidos.html">Pedidos</a>
             <a href="clientes.html">Clientes</a>
             <a href="empleados.html" class="active">Empleados</a>
         </nav>
     </header>
+
     <main class="dashboard-container">
-        <h2 class="page-title">Flotilla de Empleados</h2>
-        <div class="content-layout">
-            <div class="form-container"><div class="form-card">
-                <h3>Registrar Empleado</h3>
-                <form id="empForm">
-                    <div class="form-group"><label>Nombre</label><input type="text" id="empNombre" class="form-control" required></div>
-                    <div class="form-group"><label>Apellido</label><input type="text" id="empApellido" class="form-control" required></div>
-                    <div class="form-group"><label>Teléfono</label><input type="text" id="empTelefono" class="form-control" required></div>
-                    <div class="form-group"><label>Cédula</label><input type="text" id="empCedula" class="form-control" required></div>
-                    <button type="submit" class="btn-primary">Guardar Empleado</button>
-                </form>
-            </div></div>
-            <div class="table-container"><div class="table-card">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Nombre Completo</th>
-                            <th>Teléfono</th>
-                            <th>Cédula</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody"></tbody>
-                </table>
-            </div></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
+            <h2 class="page-title" style="margin-bottom: 0;">Directorio de Personal</h2>
+        </div>
+        
+        <div class="content-layout" style="align-items: flex-start;">
+            <!-- Contenedor del Formulario Fijo -->
+            <div class="form-container" style="position: sticky; top: 20px;">
+                <div class="form-card">
+                    <h3>Registrar Nuevo Empleado</h3>
+                    <form id="empleadoForm">
+                        <div class="form-group">
+                            <label for="tipoEmpleado">Tipo de Contrato</label>
+                            <select id="tipoEmpleado" class="form-control" required>
+                                <option value="Mensajero">Mensajero (Pago por Comisión)</option>
+                                <option value="Staff">Staff Interno (Sueldo Fijo)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="nombre">Nombre</label>
+                            <input type="text" id="nombre" class="form-control" placeholder="Ej. Carlos" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="apellido">Apellido</label>
+                            <input type="text" id="apellido" class="form-control" placeholder="Ej. Rodríguez" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cedula">Cédula de Identidad</label>
+                            <input type="text" id="cedula" class="form-control" placeholder="000-0000000-0" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="telefono">Número de Teléfono</label>
+                            <input type="tel" id="telefono" class="form-control" placeholder="809-000-0000" required>
+                        </div>
+
+                        <!-- ESTA CASILLA ESTÁ OCULTA HASTA QUE SE PONGA LA CLAVE -->
+                        <div class="form-group" id="salarioGroup" style="display:none; background: #f0fdf4; padding: 10px; border-left: 3px solid var(--success-green); border-radius: 4px;">
+                            <label for="salario" style="color: #166534; font-weight: bold;">Salario Fijo (RD$)</label>
+                            <input type="number" id="salario" class="form-control" min="0" step="0.01" placeholder="Ej. 15000">
+                        </div>
+
+                        <button type="submit" class="btn-primary" style="margin-top: 10px;">Registrar en el Sistema</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tabla de Monitoreo -->
+            <div class="table-container">
+                <div class="table-card">
+                    <h3>👥 Plantilla Activa</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Nombre Completo</th>
+                                <th>Cédula</th>
+                                <th>Teléfono</th>
+                                <th>Cargo</th>
+                                <th style="text-align: right;">Esquema / Salario</th>
+                                <th style="text-align: center;">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaEmpleados"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </main>
-    <script type="module">
-        import { db, collection, addDoc, getDocs, query, where, updateDoc, doc } from "./firebase-config.js";
-        const form = document.getElementById('empForm');
-        const tbody = document.getElementById('tableBody');
 
-        async function cargar() {
-            tbody.innerHTML = '';
-            const snap = await getDocs(query(collection(db, "empleados"), where("activo", "==", true)));
+    <!-- Modal de Seguridad para Habilitar Staff -->
+    <div id="passwordStaffModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <h3 style="color: #1e3c72; margin-bottom: 5px;">🔒 Acceso Restringido</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">Ingrese la contraseña administrativa para registrar personal de Staff con sueldo fijo.</p>
             
-            snap.forEach(docSnap => {
-                const data = docSnap.data();
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${data.id_auto}</strong></td>
-                    <td>${data.nombre} ${data.apellido}</td>
-                    <td>${data.telefono}</td>
-                    <td>${data.cedula}</td>
-                    <td>
-                        <button class="action-btn btn-delete btn-borrar-emp" data-id="${docSnap.id}">Borrar</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
+            <input type="password" id="staffPassword" class="form-control" placeholder="Contraseña">
+            
+            <button id="btnVerificarPassword" class="btn-primary" style="margin-top: 1rem; width: 100%;">Verificar y Desbloquear</button>
+            <button id="btnCancelarPassword" class="btn-primary" style="background:#64748b; margin-top:0.5rem; width: 100%;">Cancelar</button>
+        </div>
+    </div>
 
-            // Asignar evento de borrado lógico
-            document.querySelectorAll('.btn-borrar-emp').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    if (confirm("¿Seguro que desea dar de baja a este empleado? Su historial y nóminas guardadas no sufrirán cambios.")) {
-                        const docId = e.target.getAttribute('data-id');
-                        await updateDoc(doc(db, "empleados", docId), { activo: false });
-                        cargar(); // Recargar tabla
-                    }
-                });
-            });
-        }
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await addDoc(collection(db, "empleados"), {
-                id_auto: 'EMP-' + Math.floor(100000 + Math.random() * 900000),
-                nombre: document.getElementById('empNombre').value.trim(),
-                apellido: document.getElementById('empApellido').value.trim(),
-                telefono: document.getElementById('empTelefono').value.trim(),
-                cedula: document.getElementById('empCedula').value.trim(),
-                activo: true
-            });
-            form.reset(); 
-            cargar();
-        });
-        document.addEventListener('DOMContentLoaded', cargar);
-    </script>
+    <footer><p>Te lo llevo © 2026 - Eficiencia sobre ruedas</p></footer>
+    
+    <script type="module" src="empleados.js"></script>
 </body>
 </html>
