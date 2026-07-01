@@ -65,7 +65,7 @@
                         <th>Periodo Abarcado</th>
                         <th>Total de Viajes</th>
                         <th>Ingreso Bruto</th>
-                        <th>Módulos de Impresión</th>
+                        <th>Módulos de Impresión y Balance</th>
                     </tr>
                 </thead>
                 <tbody id="cortesBody">
@@ -121,6 +121,34 @@
         </div>
     </div>
 
+    <div id="resumenFinancieroModal" class="modal">
+        <div class="modal-content" style="max-width: 450px; text-align: center; padding: 2.5rem;">
+            <div style="font-size: 3rem; margin-bottom: 0.5rem;">💵</div>
+            <h3 style="color: #1e3c72; margin-bottom: 0.2rem;">Resumen Financiero Semanal</h3>
+            <p id="modalResumenPeriodo" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem;">Periodo del Corte</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 2rem; text-align: left;">
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px;">
+                    <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: bold;">Entrada Bruta</span>
+                    <h2 id="resumenEntradaBruta" style="margin: 5px 0 0 0; color: #334155; font-size: 1.8rem;">RD$ 0.00</h2>
+                    <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #94a3b8;">Suma acumulada de todos los viajes</p>
+                </div>
+                <div style="background: #fff7ed; border: 1px solid #ffedd5; padding: 15px; border-radius: 8px;">
+                    <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #c2410c; font-weight: bold;">Total de Comisiones</span>
+                    <h2 id="resumenComisiones" style="margin: 5px 0 0 0; color: #ea580c; font-size: 1.8rem;">RD$ 0.00</h2>
+                    <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #ea580c;">Cantidad de viajes multiplicada por 50</p>
+                </div>
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px;">
+                    <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #166534; font-weight: bold;">Total de Sueldos</span>
+                    <h2 id="resumenSueldos" style="margin: 5px 0 0 0; color: var(--success-green); font-size: 1.8rem;">RD$ 0.00</h2>
+                    <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #166534;">Entrada bruta menos comisiones</p>
+                </div>
+            </div>
+            
+            <button id="btnCerrarResumenFinanciero" class="btn-primary" style="background: #64748b; width: 100%;">Cerrar Balance</button>
+        </div>
+    </div>
+
     <div id="detalleClienteModal" class="modal" style="z-index: 1002;">
         <div class="modal-content" style="max-width: 650px;">
             <h3 id="detalleNombreCliente" style="color: #1e3c72; margin-bottom: 15px;"></h3>
@@ -144,6 +172,10 @@
 
     <footer><p>Te lo llevo © 2026</p></footer>
 
+    <script type="module">
+        import { auth, onAuthStateChanged } from "./firebase-config.js";
+        onAuthStateChanged(auth, (user) => { if (!user) window.location.href = "login.html"; });
+    </script>
 
     <script type="module">
         import { db, collection, getDocs } from "./firebase-config.js";
@@ -181,8 +213,11 @@
                                 <button class="btn-primary btn-ver-corte" data-index="${index}" style="padding: 6px 12px; font-size: 0.85rem; margin-right: 5px;">
                                     📁 Clientes
                                 </button>
-                                <button class="btn-primary btn-ver-nomina" data-index="${index}" style="padding: 6px 12px; font-size: 0.85rem; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); border:none;">
+                                <button class="btn-primary btn-ver-nomina" data-index="${index}" style="padding: 6px 12px; font-size: 0.85rem; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); border:none; margin-right: 5px;">
                                     📋 Nómina
+                                </button>
+                                <button class="btn-primary btn-ver-resumen" data-index="${index}" style="padding: 6px 12px; font-size: 0.85rem; background: #8b5cf6; border:none; font-weight: bold;">
+                                    💰 Resumen
                                 </button>
                             </td>
                         </tr>
@@ -250,7 +285,7 @@
                 });
             });
 
-            // CONTROL PANEL 2: NÓMINA DE MENSAJEROS (NUEVO)
+            // CONTROL PANEL 2: NÓMINA DE MENSAJEROS
             document.querySelectorAll('.btn-ver-nomina').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const index = e.currentTarget.getAttribute('data-index');
@@ -262,11 +297,7 @@
                     corte.pedidos.forEach(pedido => {
                         const idEmp = pedido.id_empleado;
                         if (!empleadosAgrupados[idEmp]) {
-                            empleadosAgrupados[idEmp] = { 
-                                nombre: pedido.nombre_empleado || 'Mensajero', 
-                                viajes: 0, 
-                                bruto: 0 
-                            };
+                            empleadosAgrupados[idEmp] = { nombre: pedido.nombre_empleado || 'Mensajero', viajes: 0, bruto: 0 };
                         }
                         empleadosAgrupados[idEmp].viajes += 1;
                         empleadosAgrupados[idEmp].bruto += parseFloat(pedido.precio || 0);
@@ -277,7 +308,6 @@
 
                     for (let idEmpleado in empleadosAgrupados) {
                         const emp = empleadosAgrupados[idEmpleado];
-                        // FÓRMULA SOLICITADA: Neto = Bruto - (Viajes * 50)
                         const sueldoNeto = emp.bruto - (emp.viajes * 50);
 
                         tbodyNomina.innerHTML += `
@@ -304,9 +334,35 @@
                     document.getElementById('nominaCorteModal').style.display = 'flex';
                 });
             });
+
+            // NUEVO CONTROL PANEL 3: MODAL DE RESUMEN CONTABLE GLOBAL DEL CORTE
+            document.querySelectorAll('.btn-ver-resumen').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = e.currentTarget.getAttribute('data-index');
+                    const corte = historialCortes[index];
+                    
+                    document.getElementById('modalResumenPeriodo').textContent = `Periodo Abarcado: ${corte.periodo}`;
+
+                    let totalViajes = corte.pedidos ? corte.pedidos.length : 0;
+                    let entradaBruta = 0;
+                    if(corte.pedidos) {
+                        corte.pedidos.forEach(p => entradaBruta += parseFloat(p.precio || 0));
+                    }
+
+                    // APLICACIÓN ESTRICTA DE LAS FÓRMULAS SOLICITADAS:
+                    const totalComisiones = totalViajes * 50;
+                    const totalSueldos = entradaBruta - totalComisiones;
+
+                    // Inyección limpia en las cajas del modal
+                    document.getElementById('resumenEntradaBruta').textContent = `RD$ ${entradaBruta.toFixed(2)}`;
+                    document.getElementById('resumenComisiones').textContent = `RD$ ${totalComisiones.toFixed(2)}`;
+                    document.getElementById('resumenSueldos').textContent = `RD$ ${totalSueldos.toFixed(2)}`;
+
+                    document.getElementById('resumenFinancieroModal').style.display = 'flex';
+                });
+            });
         }
 
-        // VISTA PREVIA DETALLADA DE HISTORIAL DE RUTAS (SOLO TEXTO)
         function asignarEventosDetalles() {
             document.querySelectorAll('.link-ver-detalles').forEach(link => {
                 link.addEventListener('click', (e) => {
@@ -331,7 +387,6 @@
             });
         }
 
-        // 🖨️ IMPRESIÓN 1: FACTURA DE CLIENTES
         function asignarEventosImpresionFactura() {
             document.querySelectorAll('.btn-imprimir-factura').forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -377,7 +432,6 @@
             });
         }
 
-        // 🖨️ IMPRESIÓN 2: RECIBO DE NÓMINA DE EMPLEADO (NUEVO)
         function asignarEventosImpresionNomina() {
             document.querySelectorAll('.btn-imprimir-recibo').forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -395,7 +449,6 @@
                             <h1>TE LO LLEVO</h1>
                             <p style="margin: 5px 0 0 0; color: #333;">Recibo Oficial de Pago de Nómina</p>
                         </div>
-                        
                         <div class="factura-meta">
                             <div>
                                 <p style="margin:0;"><strong>Empleado:</strong> ${nombreEmpleado}</p>
@@ -405,7 +458,6 @@
                                 <p style="margin:0;"><strong>Fecha de Liquidación:</strong> ${fechaCorte}</p>
                             </div>
                         </div>
-
                         <table class="factura-table">
                             <thead>
                                 <tr>
@@ -427,7 +479,6 @@
                                 </tr>
                             </tbody>
                         </table>
-
                         <div class="factura-total-box">
                             <p style="margin: 0;"><strong>Sueldo Bruto Acumulado:</strong> RD$ ${bruto.toFixed(2)}</p>
                             <p style="margin: 0; color: #c00;"><strong>Total Descuento Aplicado:</strong> -RD$ ${deducciones.toFixed(2)}</p>
@@ -435,7 +486,6 @@
                                 <strong>SUELDO NETO RECIBIDO: RD$ ${neto.toFixed(2)}</strong>
                             </p>
                         </div>
-
                         <div style="margin-top: 80px; display: flex; justify-content: space-between;">
                             <div style="width: 40%; border-top: 1px solid #000; text-align: center; font-size: 13px;">
                                 <p style="margin-top: 5px;">Firma del Operador / Administración</p>
@@ -450,18 +500,21 @@
             });
         }
 
-        // Cierre de Modales
+        // Cierre unificado de todos los modales activos
         const modalClientes = document.getElementById('clientesCorteModal');
         const modalNomina = document.getElementById('nominaCorteModal');
+        const modalResumen = document.getElementById('resumenFinancieroModal');
         const modalDetalles = document.getElementById('detalleClienteModal');
 
         document.getElementById('btnCerrarClientesCorte').addEventListener('click', () => modalClientes.style.display = 'none');
         document.getElementById('btnCerrarNominaCorte').addEventListener('click', () => modalNomina.style.display = 'none');
+        document.getElementById('btnCerrarResumenFinanciero').addEventListener('click', () => modalResumen.style.display = 'none');
         document.getElementById('btnCerrarDetalle').addEventListener('click', () => modalDetalles.style.display = 'none');
 
         window.addEventListener('click', (e) => { 
             if (e.target === modalClientes) modalClientes.style.display = 'none'; 
             if (e.target === modalNomina) modalNomina.style.display = 'none'; 
+            if (e.target === modalResumen) modalResumen.style.display = 'none'; 
             if (e.target === modalDetalles) modalDetalles.style.display = 'none'; 
         });
 
