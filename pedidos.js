@@ -349,3 +349,67 @@ function restaurarBotonCorte() {
 }
 
 document.addEventListener('DOMContentLoaded', () => { cargarSelectores(); cargarTablas(); });
+
+// ============================================================================
+// 🧪 MÓDULO DE PRUEBAS PARA DESARROLLADORES (INYECCIÓN AUTOMÁTICA)
+// ============================================================================
+const btnInyectarPruebas = document.getElementById('btnInyectarPruebas');
+
+if (btnInyectarPruebas) {
+    btnInyectarPruebas.addEventListener('click', async () => {
+        // Verificar que haya al menos un cliente y un empleado cargado en las listas
+        if (selectCliente.options.length <= 1 || selectEmpleado.options.length <= 1) {
+            alert("⚠️ Necesitas tener al menos 1 cliente y 1 mensajero registrados para generar pruebas automáticas.");
+            return;
+        }
+
+        const confirmacion = confirm("🧪 MODO DE DESARROLLO: \n¿Deseas inyectar 5 pedidos falsos marcados como 'Entregados' para hacer pruebas de corte?");
+        if (!confirmacion) return;
+
+        btnInyectarPruebas.disabled = true;
+        btnInyectarPruebas.innerText = "Inyectando... ⏳";
+
+        // Tomar el primer cliente y el primer empleado disponible en las listas
+        const idCli = selectCliente.options[1].value;
+        const nomCli = selectCliente.options[1].text;
+        const idEmp = selectEmpleado.options[1].value;
+        const nomEmp = selectEmpleado.options[1].text;
+
+        try {
+            // Ciclo para generar 5 pedidos al instante
+            for (let i = 1; i <= 5; i++) {
+                const ahora = new Date();
+                const timestampCompleto = ahora.toLocaleDateString('es-DO', { year: 'numeric', month: '2-digit', day: '2-digit' }) + ' ' + 
+                                          ahora.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+
+                await addDoc(collection(db, "pedidos"), {
+                    id_pedido: 'PED-TEST-' + Math.floor(1000 + Math.random() * 9000),
+                    id_cliente: idCli,
+                    nombre_cliente: nomCli,
+                    nombre_destinatario: "Destinatario de Prueba " + i,
+                    id_empleado: idEmp,
+                    nombre_empleado: nomEmp,
+                    detalle_pedido: "📦 Paquete de Prueba (Auto-generado)",
+                    cantidad_paquetes: 1,
+                    distancia: 5,
+                    precio: 250, // Precio fijo simulado
+                    estatus: "Entregado", // Se guardan como Entregados para que pasen al corte directamente
+                    pago: "Pendiente",
+                    valido: true,
+                    fecha: ahora.toISOString(),
+                    fecha_hora_pedido: timestampCompleto 
+                });
+            }
+            
+            // Refrescar la tabla para que aparezcan visualmente
+            await cargarTablas();
+            alert("✅ ¡Éxito! 5 pedidos de prueba han sido inyectados en la tabla de 'Órdenes Entregadas'.");
+            
+        } catch (error) {
+            alert("Error inyectando datos de prueba: " + error.message);
+        } finally {
+            btnInyectarPruebas.disabled = false;
+            btnInyectarPruebas.innerText = "🧪 Generar Pruebas";
+        }
+    });
+}

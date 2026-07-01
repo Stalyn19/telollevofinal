@@ -23,10 +23,15 @@
     </header>
 
     <main class="dashboard-container">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
-            <h2 class="page-title" style="margin-bottom: 0;">Módulo Operativo de Despacho</h2>
-            <button id="btnCorteNomina" class="btn-corte" style="margin-bottom: 0;">✂️ Realizar Corte de Nómina Semanal</button>
-        </div>
+       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
+    <h2 class="page-title" style="margin-bottom: 0;">Módulo Operativo de Despacho</h2>
+    <div>
+        <!-- NUEVO: Botón de Pruebas -->
+        <button id="btnInyectarPruebas" class="btn-primary" style="background: #8b5cf6; margin-bottom: 0; margin-right: 10px; border: none;">🧪 Generar Pruebas</button>
+        
+        <button id="btnCorteNomina" class="btn-corte" style="margin-bottom: 0;">✂️ Realizar Corte</button>
+    </div>
+</div>
         
         <div class="content-layout" style="align-items: flex-start;">
             <!-- Contenedor del Formulario Fijo con Scroll -->
